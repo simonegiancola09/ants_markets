@@ -1,5 +1,8 @@
 # ants_markets
+
 Simulation and Modeling exam Project
+
+
 Git commands to work on it
 ------------
 We take the simplest possible structure for now, and see how it goes. 
