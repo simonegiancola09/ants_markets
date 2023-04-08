@@ -1,3 +1,8 @@
+# our repo specific files to ignore when gitting
+data/engineered/
+data/raw/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
