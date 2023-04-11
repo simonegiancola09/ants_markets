@@ -1,7 +1,12 @@
 # our repo specific files to ignore when gitting
+# data is huge, we avoid saving it on git
 data/engineered/*
 data/raw/*
+# we avoid saving the environment
+# requirements.txt already stores all the 
+# necessary packages
 local_python_environment/*
+# file generated from the publication dataset download 
 md5sums.txt
 
 
