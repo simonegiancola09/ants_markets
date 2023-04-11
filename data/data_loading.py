@@ -13,8 +13,7 @@ if not os.path.exists(newpath):
 # change directory
 os.chdir('./data/raw')
 # call zenodo function to download zip data
-
-# os.makedirs('./publication_data')
+os.system('zenodo_get 10.5281/zenodo.6569620')
 with ZipFile('Gal2022_data_and_code.zip', 'r') as zip_ref:
     zip_ref.extractall('./publication_data/')
 zip_ref.close()

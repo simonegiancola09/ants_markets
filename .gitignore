@@ -1,6 +1,8 @@
 # our repo specific files to ignore when gitting
-data/engineered/
-data/raw/
+data/engineered/*
+data/raw/*
+local_python_environment/*
+md5sums.txt
 
 
 # Byte-compiled / optimized / DLL files
