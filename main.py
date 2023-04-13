@@ -2,7 +2,7 @@
 from src import config
 config.init()
 
-# print(ROOT_DIR)
 
 if __name__ == '__main__':
+    # an attempt that works, it prints ROOT_DIR which is a global variable
     print(config.ROOT_DIR)

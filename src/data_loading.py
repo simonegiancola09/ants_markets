@@ -3,14 +3,15 @@
 # by Gal and Kronauer.
 
 import pandas as pd
+import config
 import os
 from zipfile import ZipFile
 # save root directory in case it is needed
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # create directory if it does not exists
 # it should exists
-newpath = r'./data/raw' 
+
+newpath = config.ROOT_DIR + './data/raw' 
 if not os.path.exists(newpath):
     os.makedirs(newpath)
 # change directory
@@ -24,7 +25,7 @@ zip_ref.close()
 
 
 ###### COVID DATA LOADING ######
-os.chdir(ROOT_DIR)
+os.chdir(config.ROOT_DIR)
 # the website is long and ugly looking so we compose it for better reading
 covid_data_website_location = 'https://github.com/CSSEGISandData/COVID-19'
 covid_data_website_location += '/blob/master/csse_covid_19_data/csse_covid_19_time_series'
@@ -32,3 +33,4 @@ covid_data_website_location += '/time_series_covid19_confirmed_US.csv'
 df_covid_US = pd.read_csv(covid_data_website_location)
 # save data for first time use to never download it again locally
 df_covid_US.to_csv('data/raw/covid_US_raw.csv')
+
