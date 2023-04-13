@@ -5,6 +5,9 @@
 import pandas as pd
 import os
 from zipfile import ZipFile
+# save root directory in case it is needed
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # create directory if it does not exists
 # it should exists
 newpath = r'./data/raw' 
@@ -19,3 +22,13 @@ with ZipFile('Gal2022_data_and_code.zip', 'r') as zip_ref:
 zip_ref.close()
 # TODO unzip and organize folders by deleting the useless ones
 
+
+###### COVID DATA LOADING ######
+os.chdir(ROOT_DIR)
+# the website is long and ugly looking so we compose it for better reading
+covid_data_website_location = 'https://github.com/CSSEGISandData/COVID-19'
+covid_data_website_location += '/blob/master/csse_covid_19_data/csse_covid_19_time_series'
+covid_data_website_location += '/time_series_covid19_confirmed_US.csv'
+df_covid_US = pd.read_csv(covid_data_website_location)
+# save data for first time use to never download it again locally
+df_covid_US.to_csv('data/raw/covid_US_raw.csv')
