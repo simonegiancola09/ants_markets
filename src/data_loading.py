@@ -5,18 +5,19 @@ from src import global_configs
 import pandas as pd
 import os
 from zipfile import ZipFile
-import epyestim
-import epyestim.covid19 as covid19
-# save root directory in case it is needed
 
-# create directory if it does not exists
-# it should exists
+
+
+
 
 def load_publication_data():
     '''
     Loads data from publication TODO name
     '''
-    newpath = global_configs.ROOT_DIR + './data/raw' 
+    # save root directory in case it is needed
+    newpath = global_configs.ROOT_DIR + './data/raw'
+    # create directory if it does not exists
+    # it should exist
     if not os.path.exists(newpath):
         os.makedirs(newpath)
     # change directory
@@ -47,30 +48,10 @@ def load_covid_data():
     # reading command
     df_covid_US.to_csv('data/raw/covid_US_raw.csv')
 
-def load_R_number_data():
-    '''
-    Uses epyestim package for Python to estimate the R number and some confidence statistics. 
-    '''
-    filename = 'covid_US_raw.csv'
-    df_covid_US = pd.read_csv('data/raw/' 
-                            + filename,
-                            parse_dates=['date'],  # declare that date is a datetime variable
-                            index_col='date'       # set date as index
-                            ) # load dataset of cases saved in data/raw folder
-    # retrieve series of cases only
-    series_covid_US_cases = pd.Series(data = df_covid_US['cases'].values,
-                                      name = 'cases',
-                                      index = df_covid_US.index
-                                      )
-    # use epyestim
-    df_R_number = covid19.r_covid(series_covid_US_cases) # estimate R number
-    df_R_number.to_csv('data/raw/R_number_data.csv')
-
 
 if __name__ == '__main__':
     load_publication_data()
     load_covid_data()
-    load_R_number_data()
 
 
 
