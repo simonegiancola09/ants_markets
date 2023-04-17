@@ -48,6 +48,9 @@ def load_covid_data():
     df_covid_US.to_csv('data/raw/covid_US_raw.csv')
 
 def load_R_number_data():
+    '''
+    Uses epyestim package for Python to estimate the R number and some confidence statistics. 
+    '''
     filename = 'covid_US_raw.csv'
     df_covid_US = pd.read_csv('data/raw/' 
                             + filename,
