@@ -43,7 +43,7 @@ def load_covid_data():
 
     # save data for first time use to never download it again locally
     
-    df_covid_US = pd.read_csv(covid_data_website_location, )
+    df_covid_US = pd.read_csv(covid_data_website_location)
     
     # reading command
     df_covid_US.to_csv('data/raw/covid_US_raw.csv')
