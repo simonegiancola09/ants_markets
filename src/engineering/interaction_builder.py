@@ -22,21 +22,21 @@ def graph_generator(type = 'Erdos-Renyi',
     print('params are', params)
     if type == 'Erdos-Renyi':
         # need n, p params
-        G = nx.erdos_renyi_graph(params['n'], params['p'])
+        G = nx.erdos_renyi_graph(**params)
         for e in G.edges():
             G[e[0]][e[1]]['weight'] = weights_distribution()
     elif type == 'Null':
         # need n parameter
-        G = nx.empty_graph(params)
+        G = nx.empty_graph(**params)
         # no edge weights 
     elif type == 'Clique':
         # need n parameter
-        G = nx.complete_graph(params)
+        G = nx.complete_graph(**params)
         for e in G.edges():
             G[e[0]][e[1]]['weight'] = weights_distribution()
     elif type == 'Powerlaw-Cluster':
         # need n, m, p params
-        nx.powerlaw_cluster_graph(params)
+        nx.powerlaw_cluster_graph(**params)
         for e in G.edges():
             G[e[0]][e[1]]['weight'] = weights_distribution()
     else:
