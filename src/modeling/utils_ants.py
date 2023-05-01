@@ -3,12 +3,8 @@ import pandas as pd
 import scipy
 import collections
 import h5py
-from numpy import pi
 from itertools import groupby
 
-from glob import glob
-from os.path import join, isdir, isfile
-from os import getcwd, mkdir
 
 import statsmodels.api as sm
 from statsmodels.discrete.discrete_model import Logit
