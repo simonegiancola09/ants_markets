@@ -1,12 +1,15 @@
 arrow==1.2.3
+attrs==23.1.0
 binaryornot==0.4.4
 certifi==2022.12.7
 chardet==5.1.0
 charset-normalizer==3.1.0
 click==8.1.3
+clize==5.0.0
 contourpy==1.0.7
 cookiecutter==2.1.1
 cycler==0.11.0
+docutils==0.19
 epyestim==0.1
 fonttools==4.39.3
 idna==3.4
@@ -21,6 +24,7 @@ Mesa==1.2.1
 more-itertools==9.1.0
 networkx==3.1
 numpy==1.24.2
+od==2.0.2
 packaging==23.1
 pandas==2.0.0
 patsy==0.5.3
@@ -33,6 +37,7 @@ PyYAML==6.0
 Quandl==3.7.0
 requests==2.29.0
 scipy==1.10.1
+sigtools==4.0.1
 six==1.16.0
 statsmodels==0.13.5
 text-unidecode==1.3

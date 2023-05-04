@@ -79,7 +79,6 @@ def load_relaxation_data(normalize=True):
     return X
 
 
-#%%
 
 
 

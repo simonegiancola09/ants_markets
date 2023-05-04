@@ -148,3 +148,37 @@ class InvestorModel(Model):
         self.datacollector.collect(self)
 
 
+''''
+from mesa.visualization.modules import ChartModule
+from mesa.visualization.modules import NetworkModule
+from mesa.visualization.ModularVisualization import ModularServer
+
+# Create an instance of the InvestorModel with 50 investors, a maximum trade size of 10, an external variable of 0.1, and an initial stock price of 100
+model = InvestorModel(num_investors=50, max_trade_size=10, external_var=0.1, initial_stock_price=100)
+
+# Create a chart to visualize the stock price over time
+stock_price_chart = ChartModule([{"Label": "Stock Price", "Color": "Black"}], data_collector_name="datacollector")
+
+# Create a network visualization of the investor network
+network_viz = NetworkModule(model.grid, model.schedule)
+
+# Create a server to run the simulation
+server = ModularServer(InvestorModel, [network_viz, stock_price_chart], "Investor Model", {"num_investors": 50, "max_trade_size": 10, "external_var": 0.1, "initial_stock_price": 100})
+
+# Start the server
+server.port = 8521 # Choose a port to run the server on
+server.launch()
+
+'''
+
+'''
+This code creates an instance of the InvestorModel class with 50 investors, a maximum trade size of 10, an external variable of 0.1, and an initial stock price of 100.
+ It also creates a chart to visualize the stock price over time and a network visualization of 
+ the investor network. Finally, it creates a server to run the simulation and starts the server 
+ on a chosen port.
+
+You can access the visualization by opening a web browser and navigating to http://localhost:8521/. 
+You should see a network visualization of the investor network and a chart of the stock 
+price over time. You can then click the "Run" button to start the simulation and watch it 
+evolve over time.
+'''

@@ -3,7 +3,7 @@ import numpy as np
 from os.path import join
 
 try:
-    __IPYTHON__
+    __IPYTHON__ #TODO what is this
     _in_ipython_session = True
 except NameError:
     _in_ipython_session = False
@@ -148,10 +148,10 @@ class colony:
         m = np.zeros((reps, TS.shape[0], duration*self.N+1))
         
        
-        for ix in tqdm(range(reps)):
+        for ix in tqdm(range(reps)): # tqdm is a progress bar library
             self.reset()
-            for jx, T in enumerate(TS):
-                m[ix,jx] = self.run(T, duration=duration)
+            for jx, T in enumerate(TS): #extract index of perturbation and perturbation
+                m[ix,jx] = self.run(T, duration=duration) #assign to magnetization index of perturbation and of progress
                 
         # calc threshold
         mi = np.take(m,range(-100,0),-1).mean(axis=-1)
@@ -191,6 +191,7 @@ def simulate_colony_thermal_response(*, beta=1.0, theta_m=32.0, theta_sd=2.0, gs
     if outfile is not None:
         print('Saving to ' + outfile)
         with open(outfile, 'wb') as f:
+            # Save several arrays into a single file in compressed .npz format.
             np.savez_compressed(f, m=m, threshold=threshold, beta=beta, theta_m=theta_m, theta_sd=theta_sd, N=gs, Jp=Jp, Jr=Jr, interaction=interaction, Tmin=tempmin, Tmax=tempmax, dT=tempdelta, duration=duration, reps=reps, TS=TS, alpha=alpha)
     
     
