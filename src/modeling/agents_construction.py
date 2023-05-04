@@ -15,6 +15,10 @@ class ANT_FINANCIAL_AGENT(Agent):
     '''
     Agent describing possible moves of a shareholder
     '''
+    # TODO should see financial data, R number and make decisions on it
+    # then pass it on to the nest as a collective behavior
+    # TODO should have some investing preferences defined ex ante
+    # TODO these investing preferences could also be random as a start
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         pass 

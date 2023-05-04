@@ -11,6 +11,9 @@ import epyestim
 import epyestim.covid19 as covid19
 import pandas as pd
 import os
+import quandl
+
+
 
 def load_R_number_data():
     '''
@@ -66,9 +69,5 @@ def retrieve_cases_and_R_number():
     assert df_covid.isnull().values.any() == False 
     # save into engineered data
     df_covid.to_csv('data/engineered/df_covid.csv')
-
-
-
-
 
 

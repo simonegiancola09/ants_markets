@@ -6,6 +6,8 @@ import pandas as pd
 import os
 from zipfile import ZipFile
 
+import quandl
+
 
 
 
@@ -48,6 +50,18 @@ def load_covid_data():
     # reading command
     df_covid_US.to_csv('data/raw/covid_US_raw.csv')
 
+######## FINANCIAL DATA LOADING ########################
+def load_financial_data(stock_name = 'WIKI/NVDA', dates = ('2020-01-01', '2020-03-31')):
+    '''
+    Load Financial Data from a common stock to populate the dataframe, choose dates accordingly
+    '''
+
+    # Get data via Quandl API
+    df_financial = quandl.get(stock_name)
+    # save
+    df_financial.to_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name))
+
+################################################
 
 if __name__ == '__main__':
     load_publication_data()
