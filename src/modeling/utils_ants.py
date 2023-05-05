@@ -327,5 +327,3 @@ def cm2in(x):
         return tuple([cm2in(xi) for xi in x])
     else:
         return x / 2.54
-
-#%%
