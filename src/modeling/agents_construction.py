@@ -1,12 +1,15 @@
 ###### here we build the agents and their rules #######
+import random
+import numpy as np
+import networkx as nx
+import sys
 from mesa import Agent, Model
 from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
 from mesa.batchrunner import BatchRunner
+from mesa.space import NetworkGrid
 
-import random
-import numpy as np
-import sys
+
 
 
 # here we code a class that 
@@ -19,9 +22,17 @@ class Ant_Financial_Agent(Agent):
     # then pass it on to the nest as a collective behavior
     # TODO should have some investing preferences defined ex ante
     # TODO these investing preferences could also be random as a start
-    def __init__(self, unique_id, model):
+    def __init__(self, unique_id, model, cash, stock, risk_propensity):
         super().__init__(unique_id, model)
-        pass 
+        # individual parameters
+        self.cash = cash
+        self.stocks_owned = stock
+        self.risk_propensity = risk_propensity
+        ######################################
+        self.state = -1 # -1 if non actively investing, 1 if investing
+        self.last_price = None
+        # the position is cash and stock
+        self.pos = (cash, stock)
     def move(self):
         pass
     def interact(self):
@@ -30,39 +41,88 @@ class Ant_Financial_Agent(Agent):
         pass
     def step(self):
         pass
-
+    def calculate_wealth(self):
+        return self.cash + self.stocks_owned * self.model.stock_price
+    def get_neighbors(self):
+        # TODO
+        return None
+    def calculate_local_utility(self):
+        '''
+        Should compute some sort of local utility considering:
+            - cash (agent-dependent)
+            - stock (agent-dependent)
+            - risk propensity (agent-dependent)
+            - current stock price (market-dependent)
+            - the external variable (i.e. Rt) (repulsive)
+            - what neighbors are doing (attractive)
+        '''
+        # TODO
+        return None
+    def preference_update(self):
+        current_state = self.state
+        if current_state == 1: # if actively investing, check if want to stop actively investing
+            pass
+        # TODO
+    def set_aside(self):
+        '''
+        In principle, we want to restrict those investors that tend too much to invest / disinvest
+        for this reason we need to understand where to respawn investors when they get to their
+        limiting behavior at one of the corners, or even out of it. 
+        The idea could be that we just imagine that they set aside money or if they finish it just
+        get an injection from the outside. 
+        '''
+        return None
 class Nest_Model(Model):
     '''
     Model describing investors interacting on a nest structure
     '''
-    def __init__(self, N):
+    def __init__(self, N, initial_stock_price, initial_external_var, max_trade_size, interaction_graph):
+        # instantiate model at the beginning
         self.num_agents = N
+        self.stock_price = initial_stock_price
+        self.external_var = initial_external_var
+        self.max_trade_size = max_trade_size
+        self.schedule = RandomActivation(self)
+        # graph is an input, can be chosen
+        self.grid = NetworkGrid(interaction_graph)
+
         
         # create agents
         for i in range(self.num_agents):
-            a = ANT_FINANCIAL_AGENT(i, self)
-            self.schedule.add(a)
+            cash = random.uniform(0, 100) 
+            stock = random.uniform(0, 100)
+            risk_propensity = random.uniform(0, 1)
+            investor = Investor(i, self, cash, stock, risk_propensity)
+            self.grid.place_agent(investor, i)
+            self.schedule.add(investor)
 
-            # need to embed graph probably, assign randomly
         # collect relevant data
         self.datacollector = DataCollector(model_reporters = {})
+        return None
     def step(self):
         self.datacollector.collect(self)
         self.schedule.step()
         #do somehting
+        return None
+    def get_nest_location(self):
+        '''
+        In the main paper, the nest location is estimated as the median of the investors positions
+        '''
+        cash_array = []
+        stock_array = []
+        # retrieve all positions
+        for investor in self.grid.get_all_cell_contents:
+            cash_array.append(investor.cash)
+            stock_array.append(investor.stocks_owned)
+        # return median
+        return np.median(cash_array), np.median(stock_array)
 
 
 
 
 
     ################## TENTATIVE ####################################
-    import random
-import numpy as np
-import networkx as nx
-from mesa import Agent, Model
-from mesa.time import RandomActivation
-from mesa.space import NetworkGrid
-from mesa.datacollection import DataCollector
+
 
 class Investor(Agent):
     def __init__(self, unique_id, model, cash, stock, likelihood):
