@@ -44,6 +44,9 @@ class Ant_Financial_Agent(Agent):
     def calculate_wealth(self):
         return self.cash + self.stocks_owned * self.model.stock_price
     def get_neighbors(self):
+        '''
+        get neighbors of agent
+        '''
         # TODO
         return None
     def calculate_local_utility(self):
@@ -59,6 +62,9 @@ class Ant_Financial_Agent(Agent):
         # TODO
         return None
     def preference_update(self):
+        '''
+        check maybe if state needs to change
+        '''
         current_state = self.state
         if current_state == 1: # if actively investing, check if want to stop actively investing
             pass
@@ -122,7 +128,8 @@ class Nest_Model(Model):
 
 
     ################## TENTATIVE ####################################
-
+# below are some code snippets that could be useful to determine our agents and our model
+# they should be merged with the colony class in the other file
 
 class Investor(Agent):
     def __init__(self, unique_id, model, cash, stock, likelihood):
