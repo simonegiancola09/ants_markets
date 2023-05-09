@@ -117,7 +117,7 @@ class Nest_Model(Model):
         cash_array = []
         stock_array = []
         # retrieve all positions
-        for investor in self.grid.get_all_cell_contents:
+        for investor in self.grid.get_all_cell_contents():
             cash_array.append(investor.cash)
             stock_array.append(investor.stocks_owned)
         # return median
