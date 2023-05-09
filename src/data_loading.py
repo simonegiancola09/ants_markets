@@ -1,7 +1,7 @@
 # load here data from financial markets and from the paper
 # "The emergence of a collective sensory response threshold in ant colonies" 
 # by Gal and Kronauer.
-from src import global_configs
+import global_configs
 import pandas as pd
 import os
 from zipfile import ZipFile
@@ -55,9 +55,10 @@ def load_financial_data(stock_name = 'WIKI/NVDA', dates = ('2020-01-01', '2020-0
     '''
     Load Financial Data from a common stock to populate the dataframe, choose dates accordingly
     '''
+    # TODO change
 
     # Get data via Quandl API
-    df_financial = quandl.get(stock_name)
+    df_financial = quandl.get(stock_name, dates)
     # save
     df_financial.to_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name))
 
@@ -66,6 +67,7 @@ def load_financial_data(stock_name = 'WIKI/NVDA', dates = ('2020-01-01', '2020-0
 if __name__ == '__main__':
     load_publication_data()
     load_covid_data()
+    load_financial_data()
 
 
 
