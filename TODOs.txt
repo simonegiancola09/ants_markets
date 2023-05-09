@@ -1,0 +1,9 @@
+SIMONE
+
+    - mettere a posto financial data, quandl non aggiornato
+    - creare funzione che plotta colonia
+
+DARIO
+    - mettere a posto ABM con gli ultimi pezzi
+    - Pucciare ABM in modello
+    - check class colony che ha robe interessanti per la fusione
