@@ -2,6 +2,7 @@
 # data is huge, we avoid saving it on git
 data/engineered/*
 data/raw/*
+source
 # we avoid saving the environment
 # requirements.txt already stores all the 
 # necessary packages
