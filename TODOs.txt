@@ -5,5 +5,6 @@ SIMONE
 
 DARIO
     - mettere a posto ABM con gli ultimi pezzi
+        - muovere gli agenti: calcola utility, decide azione in base a utility
     - Pucciare ABM in modello
     - check class colony che ha robe interessanti per la fusione

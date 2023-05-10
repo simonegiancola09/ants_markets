@@ -27,28 +27,35 @@ class Ant_Financial_Agent(Agent):
         # individual parameters
         self.cash = cash
         self.stocks_owned = stock
+        self.total_owned = stock * self.model.stock_price + cash
         self.risk_propensity = risk_propensity
         ######################################
         self.state = -1 # -1 if non actively investing, 1 if investing
         self.last_price = None
         # the position is cash and stock
-        self.pos = (cash, stock)
+        self.pos = (cash / self.total_owned, stock * self.model.stock_price / self.total_owned)
+
     def move(self):
         pass
+
     def interact(self):
         pass
+
     def try_to_come_back(self):
         pass
+
     def step(self):
         pass
     def calculate_wealth(self):
         return self.cash + self.stocks_owned * self.model.stock_price
+
     def get_neighbors(self):
         '''
         get neighbors of agent
         '''
         # TODO
         return None
+
     def calculate_local_utility(self):
         '''
         Should compute some sort of local utility considering:
@@ -59,8 +66,9 @@ class Ant_Financial_Agent(Agent):
             - the external variable (i.e. Rt) (repulsive)
             - what neighbors are doing (attractive)
         '''
-        # TODO
+        
         return None
+
     def preference_update(self):
         '''
         check maybe if state needs to change
@@ -86,11 +94,13 @@ class Nest_Model(Model):
         # instantiate model at the beginning
         self.num_agents = N
         self.stock_price = initial_stock_price
+        self.avg_stock_price = initial_stock_price
         self.external_var = initial_external_var
         self.max_trade_size = max_trade_size
         self.schedule = RandomActivation(self)
         # graph is an input, can be chosen
         self.grid = NetworkGrid(interaction_graph)
+        self.t = 1
 
         
         # create agents
@@ -105,11 +115,14 @@ class Nest_Model(Model):
         # collect relevant data
         self.datacollector = DataCollector(model_reporters = {})
         return None
+
     def step(self):
         self.datacollector.collect(self)
         self.schedule.step()
+        self.t += 1
         #do somehting
         return None
+
     def get_nest_location(self):
         '''
         In the main paper, the nest location is estimated as the median of the investors positions
@@ -122,6 +135,10 @@ class Nest_Model(Model):
             stock_array.append(investor.stocks_owned)
         # return median
         return np.median(cash_array), np.median(stock_array)
+
+    def update_avg_price(self):
+        pct = self.t - 1 / self.t
+        self.avg_stock_price = self.avg_stock_price * pct + self.stock_price * (1 - pct)
 
 
 
