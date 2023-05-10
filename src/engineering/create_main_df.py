@@ -24,15 +24,17 @@ def load_R_number_data():
                             + filename,
                             parse_dates=['date'],  # declare that date is a datetime variable
                             index_col='date'       # set date as index
-                            ) # load dataset of cases saved in data/raw folder
+                            ).index.rename('Date')                      # load dataset of cases saved in data/raw folder
     # retrieve series of cases only
     series_covid_US_cases = pd.Series(data = df_covid_US['cases'].values,
-                                      name = 'cases',
+                                      name = 'Cases',
                                       index = df_covid_US.index
                                       )
+    print(series_covid_US_cases.head())
     # use epyestim
     df_R_number = covid19.r_covid(series_covid_US_cases) # estimate R number
     # save into engineered data
+    print('after')
     df_R_number.to_csv('data/engineered/R_number_data.csv')
 
 

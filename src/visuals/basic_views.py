@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+from  src.modeling.agents_construction import Ant_Financial_Agent, Nest_Model
 
 ########## GRAPH STRUCTURE PART ##############
 # here we report basic functions to view
@@ -42,3 +43,43 @@ def plot_graph(G,
 
 
 ##############################################
+
+def plot_agents(nest, save = False, title = 'A plot'):
+    '''
+    Takes a nest and plots its agents on a square and its approximate nest. 
+    nest is a NestModel instance
+    '''
+    if not isinstance(nest, Nest_Model):
+        raise Exception('Please use as input a NestModel instance')
+    fig, ax = plt.figure(figsize = (20, 20))
+    ax.set_xlim(0,100)
+    ax.set_box_aspect(1)
+    # plot the nest center
+    center_coordinates = nest.get_nest_location()
+
+    # plot the nest radius circle if it exists
+    try:
+        radius = nest.radius
+    except:
+        radius = False
+    if radius:
+        ax.add_patch(plt.Circle(center_coordinates, radius,
+                                c = 'blue',
+                                fill=False,
+                                lw = 10)
+                    )
+    # plot each agent position
+    for investor in nest.grid.get_all_cell_contents():
+        investor_coordinates = investor.pos
+        investor_state = investor.state
+        # plot a marker, color is chosen by the investor state
+        ax.plot(investor_coordinates[0], investor_coordinates[1],
+                (investor_state == -1) * 'bo' + (investor_state == +1) * 'ro', 
+                markersize = 10
+                )
+    ax.set_title(title)
+    if save: 
+        plt.savefig('./reports/figures/{}.png'.format(title))
+
+
+
