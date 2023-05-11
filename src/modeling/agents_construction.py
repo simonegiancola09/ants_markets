@@ -1,4 +1,5 @@
 ###### here we build the agents and their rules #######
+# %%
 import random
 import numpy as np
 import networkx as nx
@@ -10,7 +11,7 @@ from mesa.batchrunner import BatchRunner
 from mesa.space import NetworkGrid
 
 
-
+np.random.randn()
 
 # here we code a class that 
 
@@ -18,6 +19,9 @@ def activate(beta, h):
 
     return np.where((0.5+0.5*np.tanh(beta*h)) > np.random.rand(),1,-1)
 
+def compute_magnetization(model):
+    agents_state = [agent.state for agent in model.schedule.agents]
+    return np.sum(agents_state)
 
 class Ant_Financial_Agent(Agent):
     '''
@@ -27,17 +31,17 @@ class Ant_Financial_Agent(Agent):
     # then pass it on to the nest as a collective behavior
     # TODO should have some investing preferences defined ex ante
     # TODO these investing preferences could also be random as a start
-    def __init__(self, unique_id, model, cash, stock, risk_propensity):
+    def __init__(self, unique_id, model, cash, stock, risk_propensity, sensitivity=1):
         super().__init__(unique_id, model)
         # individual parameters
         self.cash = cash
         self.stocks_owned = stock
+        self.utility = 0
         self.total_owned = self.calculate_wealth()
         self.risk_propensity = risk_propensity
-        self.sensitivity = 1
-        ######################################
+        self.sensitivity = sensitivity
         self.state = -1 # -1 if non actively investing, 1 if investing
-        self.last_price = None
+        self.last_price = self.model.stock_price
         # the position is cash and stock
         self.x = cash / self.total_owned
         self.y = stock * self.model.stock_price / self.total_owned
@@ -48,44 +52,51 @@ class Ant_Financial_Agent(Agent):
         
         if self.state == 1:
             if direction < 0:
-                quantity = np.random.randint(int(0.6*self.stocks_owned), self.stocks_owned) 
-                self.stocks_owned -= quantity
-                self.cash += quantity * self.model.stock_price
+                if self.stocks_owned > 0:
+                    try:
+                        quantity = np.random.randint(int(0.6*self.stocks_owned), self.stocks_owned) 
+                    except:
+                        print('here')
+                        quantity = 0
+                    self.stocks_owned -= quantity
+                    self.cash += quantity * self.model.stock_price
 
             else:
-                max_stocks = self.cash / self.model.stock_price
-                quantity = np.random.randint(max_stocks//2, max_stocks - 1)
-                self.stocks_owned += quantity
-                self.cash -= quantity * self.model.stock_price
+                max_stocks = np.minimum(self.cash // self.model.stock_price, self.model.num_stocks)
+                if max_stocks > 0:
+                    quantity = np.random.randint(max_stocks//2, max_stocks)
+                    self.stocks_owned += quantity
+                    self.cash -= quantity * self.model.stock_price
 
         else:
             if direction < 0:
-                quantity = np.random.randint(0, self.stocks_owned//5) 
-                self.stocks_owned -= quantity
-                self.cash += quantity * self.model.stock_price
+                if self.stocks_owned > 0:
+                    quantity = np.random.randint(0, np.maximum(self.stocks_owned//5, 1)) 
+                    self.stocks_owned -= quantity
+                    self.cash += quantity * self.model.stock_price
 
             else:
-                max_stocks = self.cash / self.model.stock_price
-                quantity = np.random.randint(0, max_stcks//5)
-                self.stocks_owned += quantity
-                self.cash -= quantity * self.model.stock_price
+                max_stocks = np.minimum(self.cash // self.model.stock_price, self.model.num_stocks)
+                if max_stocks > 0:
+                    quantity = np.random.randint(0, np.maximum(max_stocks//5, 1))
+                    self.stocks_owned += quantity
+                    self.cash -= quantity * self.model.stock_price
         self.update_position()
 
     def update_position(self):
-        wealth = self.calcuate_wealth()
+        wealth = self.calculate_wealth()
         self.x = self.cash / wealth
-        self.y = self.stocks_owned * self.model_stock_price / wealth
+        self.y = self.stocks_owned * self.model.stock_price / wealth
 
 
     def interact(self):
         pass
 
-    def try_to_come_back(self):
-        pass
-
     def step(self):
 
-        u = self.utility()
+        u = self.calculate_utility()
+        self.utility = u
+        # print(u)
         self.state = activate(self.model.beta, u)
         self.move()
         
@@ -97,10 +108,10 @@ class Ant_Financial_Agent(Agent):
         '''
         get neighbors of agent
         '''
-        # TODO
-        return None
 
-    def utility(self):
+        return [self.model.schedule.agents[neighbor] for neighbor in self.model.grid.get_neighbors(self.pos, include_center=False)]
+
+    def calculate_utility(self):
         '''
         Should compute some sort of local utility considering:
             - cash (agent-dependent)
@@ -111,9 +122,9 @@ class Ant_Financial_Agent(Agent):
             - what neighbors are doing (attractive)
         '''
 
-        neighbor_states = np.array([self.model.schedule.agents[neighbor].state for neighbor in self.model.grid.get_neighbors(self.pos, include_center=False)])
-        edges_weights = np.array([data['weight'] for u, v, data in self.model.grid.edges([self.pos], data=True)])
-        u = self.model.external_var - self.sensitivity + np.sum(edges_weights * neighbor_states)
+        neighbor_states = np.array([nh.state for nh in self.get_neighbors()])
+        edges_weights = 1
+        u = (self.model.T - self.sensitivity) * 10 + np.sum(edges_weights * neighbor_states)
 
         return u
 
@@ -132,43 +143,50 @@ class Nest_Model(Model):
     '''
     Model describing investors interacting on a nest structure
     '''
-    def __init__(self, N, beta, initial_stock_price, initial_external_var, max_trade_size, interaction_graph):
+    def __init__(self, beta, stock_price, external_var, interaction_graph, num_stocks):
         # instantiate model at the beginning
-        self.num_agents = N
-        self.stock_price = stock_price
-        self.avg_stock_price = initial_stock_price
+        assert stock_price.shape == external_var.shape
+        self.num_agents = interaction_graph.number_of_nodes()
+        self.history_stock = stock_price
+        self.stock_price = stock_price[0]
+        self.avg_stock_price = stock_price[0]
+        self.num_stocks = num_stocks
         self.pct_change = 0
         self.beta = beta
-        self.external_var = initial_external_var
-        self.max_trade_size = max_trade_size
+        self.external_var = external_var
+        self.T = external_var[0]
+        # self.max_trade_size = max_trade_size
         self.schedule = RandomActivation(self)
         # graph is an input, can be chosen
+        self.G = interaction_graph
         self.grid = NetworkGrid(interaction_graph)
-        self.t = 1
-        self.T = self.stock_price.shape
+        self.t = 0
+        self.max_steps = self.stock_price.shape
 
         
         # create agents
-        for i in range(self.num_agents):
-            cash = random.uniform(0, 100) 
-            stock = random.uniform(0, 100)
-            risk_propensity = random.uniform(0, 1)
-            investor = Investor(i, self, cash, stock, risk_propensity)
-            self.grid.place_agent(investor, i)
+        for i, node in enumerate(self.G.nodes()):
+            cash = random.uniform(50, 100) 
+            stock = random.uniform(0, 10)
+            risk_propensity = random.uniform(0, 5)
+            sensitivity = 1
+            investor = Ant_Financial_Agent(i, self, cash, stock, risk_propensity, sensitivity)
+            self.grid.place_agent(investor, node)
             self.schedule.add(investor)
 
         # collect relevant data
-        self.datacollector = DataCollector(model_reporters = {})
-        return None
+        self.datacollector = DataCollector(
+            agent_reporters = {'cash': 'x',
+                               'stocks': 'y',
+                               'utility': 'utility'},
+            model_reporters = {'state': compute_magnetization}
+        )
 
 
     def step(self):
         self.datacollector.collect(self)
         self.schedule.step()
-        self.update_price_info()
-        self.t += 1
-        #do somehting
-        return None
+        self.model_update()
 
     def get_nest_location(self):
         '''
@@ -183,11 +201,14 @@ class Nest_Model(Model):
         # return median
         return np.median(cash_array), np.median(stock_array)
 
-    def update_price_info(self):
-        stock_price = self.stock_price
-        pct_time = self.t - 1 / self.t
-        self.avg_stock_price = np.mean(stock_price[:t])
-        self.pct_change = (stock_price[t] - stock_price[t-1]) / stock_price[t-1]
+    def model_update(self):
+        history = self.history_stock
+        self.t += 1
+        self.stock_price = history[t]
+        self.T = self.external_var[t]
+        # pct_time = self.t / self.max_steps
+        self.avg_stock_price = np.mean(history[:t+1])
+        self.pct_change = (history[t] - history[t-1]) / history[t-1]
         
 
 

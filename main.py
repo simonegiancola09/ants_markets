@@ -10,8 +10,9 @@ global_configs.init()
 if __name__ == '__main__':
     # here we can attempt to use a function written in another script as below
     print('Starting main.py file. Welcome to the pipeline for our project...')
-    create_main_df.load_R_number_data()
-    create_main_df.retrieve_cases_and_R_number()
+    data_loading.load_financial_data()
+    # create_main_df.load_R_number_data()
+    # create_main_df.retrieve_cases_and_R_number()
     G = interaction_builder.graph_generator(n = 10, p = 0.5)
     fig = basic_views.plot_graph(G, save = True)
     fig.show()
