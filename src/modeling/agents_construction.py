@@ -56,7 +56,6 @@ class Ant_Financial_Agent(Agent):
                     try:
                         quantity = np.random.randint(int(0.6*self.stocks_owned), self.stocks_owned) 
                     except:
-                        print('here')
                         quantity = 0
                     self.stocks_owned -= quantity
                     self.cash += quantity * self.model.stock_price
@@ -204,6 +203,7 @@ class Nest_Model(Model):
     def model_update(self):
         history = self.history_stock
         self.t += 1
+        t = self.t
         self.stock_price = history[t]
         self.T = self.external_var[t]
         # pct_time = self.t / self.max_steps
