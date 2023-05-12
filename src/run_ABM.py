@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-N = 200
-p = 0.3
+N = 100
+p = 0.6
 epochs = 500
 beta = 1
 initial_stock_price = 1
@@ -22,6 +22,6 @@ model = agents_construction.Nest_Model(
                                     interaction_graph = G,
                                     num_stocks = num_stocks)
 
-df_model, agents_df = agents_construction.run_model(model, epochs=epochs)
+df_model, df_agents = agents_construction.run_model(model=model, epochs=epochs)
 
 
