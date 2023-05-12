@@ -14,10 +14,21 @@ from mesa.space import NetworkGrid
 
 # here we code a class that 
 
+
+def run_model(model, epochs, save_info=True):
+    for _ in range(epochs-1):
+        model.step()
+
+    if save_info:
+        model_df = model.datacollector.get_model_vars_dataframe()
+        agents_df = model.datacollector.get_agent_vars_dataframe()
+        return model_df, agents_df
+
 def determine_price(num_stocks, supply, demand):
     dif = demand - supply
     volume = demand + supply
-    pct = dif / 200000
+
+    pct = dif / (volume+1000)
     return pct
 
 def activate(beta, h):
@@ -64,7 +75,13 @@ class Ant_Financial_Agent(Agent):
     def interact(self):
         pass
 
+    def check_status(self):
+        self.cash = np.maximum(5, self.cash)
+        self.stocks_owned = np.maximum(0, self.stocks_owned)
+
     def step(self):
+
+        self.check_status()
 
         risk = self.risk_propensity
 
@@ -77,11 +94,12 @@ class Ant_Financial_Agent(Agent):
 
         score = 0.5+0.5*np.tanh(risk*u)
 
-        willingness = score - self.y 
+        willingness = score - self.y
 
         if willingness > 0:
             self.state = 1
-            can_buy = self.cash // self.model.stock_price
+            can_buy = np.minimum(self.cash // self.model.stock_price, 1000)
+                
             tentative = np.random.poisson((can_buy * willingness).astype(np.float64))
             quantity = np.minimum(np.minimum(tentative, can_buy), self.model.num_available)
             self.stocks_owned += quantity
@@ -94,6 +112,8 @@ class Ant_Financial_Agent(Agent):
             tentative = np.random.poisson((can_sell * np.abs(willingness)).astype(np.float64))
             quantity = np.minimum(can_sell, tentative)
             self.stocks_owned -= quantity
+            if self.stocks_owned < 0:
+                print(quantity, can_sell)
             self.cash += quantity * self.model.stock_price
             self.model.supply += quantity
 
@@ -121,7 +141,7 @@ class Ant_Financial_Agent(Agent):
             - what neighbors are doing (attractive)
         '''
 
-        neighbor_states = np.array([nh.state for nh in self.get_neighbors()])
+        neighbor_states = np.array([nh.y for nh in self.get_neighbors()])
         num_nh = len(neighbor_states)
         edges_weights = 1
         u = alpha * (-self.model.T) + (1 - alpha) * np.sum(edges_weights * neighbor_states) / num_nh
@@ -167,7 +187,7 @@ class Nest_Model(Model):
         for i, node in enumerate(self.G.nodes()):
             cash = random.uniform(500, 1000) 
             stock = random.uniform(0, 10)
-            risk_propensity = random.uniform(0, 5)
+            risk_propensity = random.uniform(0, 1)
             self.num_available -= stock
             sensitivity = 1
             investor = Ant_Financial_Agent(i, self, cash, stock, risk_propensity, sensitivity)
@@ -347,3 +367,4 @@ You should see a network visualization of the investor network and a chart of th
 price over time. You can then click the "Run" button to start the simulation and watch it 
 evolve over time.
 '''
+
