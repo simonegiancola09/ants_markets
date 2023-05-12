@@ -23,8 +23,9 @@ def run_model(model, epochs, save_info=True):
         model_df = model.datacollector.get_model_vars_dataframe()
         model_df[['pos_x', 'pos_y']] = model_df['nest_location'].apply(pd.Series)
         agents_df = model.datacollector.get_agent_vars_dataframe()
-        plt.plot(model_df['price'])
-        plt.title('Price dynamics')
+        plt.plot(model_df['price'], label='Price')
+        plt.title('Price')
+        plt.legend()
         plt.show()
         return model_df, agents_df
 
