@@ -3,6 +3,7 @@
 data/engineered/*
 data/raw/*
 source
+reports/*
 # we avoid saving the environment
 # requirements.txt already stores all the 
 # necessary packages
