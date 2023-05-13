@@ -1,9 +1,10 @@
 ###### here we build the agents and their rules #######
-# %%
 import random
 import numpy as np
 import networkx as nx
 import sys
+import pandas as pd
+import matplotlib.pyplot as plt
 from mesa import Agent, Model
 from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
@@ -11,75 +12,72 @@ from mesa.batchrunner import BatchRunner
 from mesa.space import NetworkGrid
 
 
-np.random.randn()
 
 # here we code a class that 
 
-def activate(beta, h):
+def run_model(model, epochs, save_info=True):
+    for _ in range(epochs-1):
+        model.step()
 
+    if save_info:
+        model_df = model.datacollector.get_model_vars_dataframe()
+        model_df[['pos_x', 'pos_y']] = model_df['nest_location'].apply(pd.Series)
+        agents_df = model.datacollector.get_agent_vars_dataframe()
+        return model_df, agents_df
+
+
+
+def determine_price(model):
+
+    dif = model.demand - model.supply
+    # volume = model.demand + model.supply
+
+    pct = dif / model.num_stocks
+    return pct
+
+def activate(beta, h):
     return np.where((0.5+0.5*np.tanh(beta*h)) > np.random.rand(),1,-1)
+
 
 def compute_magnetization(model):
     agents_state = [agent.state for agent in model.schedule.agents]
-    return np.sum(agents_state)
+    num_agents = len(agents_state)
+    return np.sum(agents_state) / num_agents
+
+def get_nest_location(model):
+    '''
+    In the main paper, the nest location is estimated as the median of the investors positions
+    '''
+    cash_array = []
+    stock_array = []
+    # retrieve all positions
+    for investor in model.grid.get_all_cell_contents():
+        cash_array.append(investor.cash)
+        stock_array.append(investor.stocks_owned)
+    # return median
+    return np.median(cash_array), np.median(stock_array)
 
 class Ant_Financial_Agent(Agent):
     '''
     Agent describing possible moves of a shareholder
     '''
-    # TODO should see financial data, R number and make decisions on it
-    # then pass it on to the nest as a collective behavior
-    # TODO should have some investing preferences defined ex ante
-    # TODO these investing preferences could also be random as a start
+
     def __init__(self, unique_id, model, cash, stock, risk_propensity, sensitivity=1):
         super().__init__(unique_id, model)
         # individual parameters
         self.cash = cash
         self.stocks_owned = stock
         self.utility = 0
-        self.total_owned = self.calculate_wealth()
+        self.wealth = self.calculate_wealth()
         self.risk_propensity = risk_propensity
         self.sensitivity = sensitivity
-        self.state = -1 # -1 if non actively investing, 1 if investing
+        self.state = np.random.choice([1,-1]) # -1 if non actively investing, 1 if investing
         self.last_price = self.model.stock_price
         # the position is cash and stock
-        self.x = cash / self.total_owned
-        self.y = stock * self.model.stock_price / self.total_owned
+        self.x = cash / self.wealth
+        self.y = stock * self.model.stock_price / self.wealth
 
     def move(self):
-        pct_change = self.model.pct_change
-        direction = activate(self.risk_propensity, pct_change)
-        
-        if self.state == 1:
-            if direction < 0:
-                if self.stocks_owned > 0:
-                    try:
-                        quantity = np.random.randint(int(0.6*self.stocks_owned), self.stocks_owned) 
-                    except:
-                        quantity = 0
-                    self.stocks_owned -= quantity
-                    self.cash += quantity * self.model.stock_price
-
-            else:
-                max_stocks = np.minimum(self.cash // self.model.stock_price, self.model.num_stocks)
-                if max_stocks > 0:
-                    quantity = np.random.randint(max_stocks//2, max_stocks)
-                    self.stocks_owned += quantity
-                    self.cash -= quantity * self.model.stock_price
-
-        else:
-            if direction < 0:
-                if self.stocks_owned > 0:
-                    quantity = np.random.randint(0, np.maximum(self.stocks_owned//5, 1)) 
-                    self.stocks_owned -= quantity
-                    self.cash += quantity * self.model.stock_price
-
-            else:
-                max_stocks = np.minimum(self.cash // self.model.stock_price, self.model.num_stocks)
-                if max_stocks > 0:
-                    quantity = np.random.randint(0, np.maximum(max_stocks//5, 1))
-                    self.stocks_owned += quantity
-                    self.cash -= quantity * self.model.stock_price
         self.update_position()
 
     def update_position(self):
@@ -91,12 +89,61 @@ class Ant_Financial_Agent(Agent):
     def interact(self):
         pass
 
-    def step(self):
+    def check_status(self):
+        self.cash = np.maximum(5, self.cash)
+        self.stocks_owned = np.maximum(0, self.stocks_owned)
 
-        u = self.calculate_utility()
+    def step(self):
+        '''
+        Steps:
+            1. checks cash is minimum 5 and stocks are nonnegative
+            2. draws alpha randomly -- to be updated
+            3. calculates utility depending on alpha
+            4. computes score based on utility: score in [-1, 1] where
+                -1 represents selling everything and 1 buying as much as one can
+            5. willingness to buy/sell evaluated in comparison with stocks alrady owned
+            6. based on willingness, buy/sell a random amount drawn from a poisson distribution
+            7. move agents on quadrant based on new cash/stocks'''
+
+        self.check_status()
+
+        risk = self.risk_propensity
+
+        uncertainty_level = 0
+
+        alpha = np.random.rand()
+
+        u = self.calculate_utility(alpha)
         self.utility = u
-        # print(u)
-        self.state = activate(self.model.beta, u)
+
+        score = 0.5+0.5*np.tanh(risk*u)
+
+        willingness = score - self.y
+
+        if willingness > 0:
+            self.state = 1
+            can_buy = np.minimum(self.cash // self.model.stock_price, 1000)
+            if (can_buy * willingness) < 0:
+                print('Attention!!!')
+            tentative = np.random.poisson((can_buy * willingness).astype(np.float64))
+            quantity = np.minimum(np.minimum(tentative, can_buy), self.model.num_available)
+            self.stocks_owned += quantity
+            self.cash -= quantity * self.model.stock_price
+            self.model.demand += quantity
+
+        else:
+            self.state = -1
+            can_sell = self.stocks_owned
+            if (can_buy * willingness) < 0:
+                print('Attention! number 2')
+            tentative = np.random.poisson((can_sell * np.abs(willingness)).astype(np.float64))
+            quantity = np.minimum(can_sell, tentative)
+            self.stocks_owned -= quantity
+            if self.stocks_owned < 0:
+                print(quantity, can_sell)
+            self.cash += quantity * self.model.stock_price
+            self.model.supply += quantity
+
         self.move()
         
 
@@ -110,21 +157,18 @@ class Ant_Financial_Agent(Agent):
 
         return [self.model.schedule.agents[neighbor] for neighbor in self.model.grid.get_neighbors(self.pos, include_center=False)]
 
-    def calculate_utility(self):
+    def calculate_utility(self, alpha):
         '''
-        Should compute some sort of local utility considering:
-            - cash (agent-dependent)
-            - stock (agent-dependent)
-            - risk propensity (agent-dependent)
-            - current stock price (market-dependent)
-            - the external variable (i.e. Rt) (repulsive)
-            - what neighbors are doing (attractive)
+        Should compute some sort of local utility:
+            - mixture of Temperature (Rt) and state behavior of neighbors depending on alpha
+            - state represents buying/selling behavior 
         '''
 
         neighbor_states = np.array([nh.state for nh in self.get_neighbors()])
+        num_nh = len(neighbor_states)
         edges_weights = 1
-        u = (self.model.T - self.sensitivity) * 10 + np.sum(edges_weights * neighbor_states)
-
+        u = alpha * (-self.model.T) + (1 - alpha) * np.sum(edges_weights * neighbor_states) / num_nh
+        # TODO adjust to account for no neighbors case
         return u
 
 
@@ -142,14 +186,14 @@ class Nest_Model(Model):
     '''
     Model describing investors interacting on a nest structure
     '''
-    def __init__(self, beta, stock_price, external_var, interaction_graph, num_stocks):
+    def __init__(self, beta, initial_stock_price, external_var, interaction_graph, num_stocks):
         # instantiate model at the beginning
-        assert stock_price.shape == external_var.shape
         self.num_agents = interaction_graph.number_of_nodes()
-        self.history_stock = stock_price
-        self.stock_price = stock_price[0]
-        self.avg_stock_price = stock_price[0]
+        self.stock_price = initial_stock_price
         self.num_stocks = num_stocks
+        self.num_available = num_stocks
+        self.demand = 0
+        self.supply = 0
         self.pct_change = 0
         self.beta = beta
         self.external_var = external_var
@@ -160,14 +204,14 @@ class Nest_Model(Model):
         self.G = interaction_graph
         self.grid = NetworkGrid(interaction_graph)
         self.t = 0
-        self.max_steps = self.stock_price.shape
 
         
         # create agents
         for i, node in enumerate(self.G.nodes()):
-            cash = random.uniform(50, 100) 
+            cash = random.uniform(500, 1000) 
             stock = random.uniform(0, 10)
-            risk_propensity = random.uniform(0, 5)
+            risk_propensity = random.uniform(0, 1)
+            self.num_available -= stock
             sensitivity = 1
             investor = Ant_Financial_Agent(i, self, cash, stock, risk_propensity, sensitivity)
             self.grid.place_agent(investor, node)
@@ -177,38 +221,41 @@ class Nest_Model(Model):
         self.datacollector = DataCollector(
             agent_reporters = {'cash': 'x',
                                'stocks': 'y',
-                               'utility': 'utility'},
-            model_reporters = {'state': compute_magnetization}
+                               'utility': 'utility',
+                               'state' : 'state'
+                               },
+            model_reporters = {'state': compute_magnetization,
+                               'T':'T',
+                               'price':'stock_price',
+                               'nest_location': get_nest_location,
+                               'demand':'demand',
+                               'supply':'supply',
+                               'pct_change':'pct_change',
+                               'stocks_available': 'num_available'
+                               }
         )
 
 
     def step(self):
         self.datacollector.collect(self)
+        self.demand = 0
+        self.supply = 0
         self.schedule.step()
         self.model_update()
 
-    def get_nest_location(self):
-        '''
-        In the main paper, the nest location is estimated as the median of the investors positions
-        '''
-        cash_array = []
-        stock_array = []
-        # retrieve all positions
-        for investor in self.grid.get_all_cell_contents:
-            cash_array.append(investor.cash)
-            stock_array.append(investor.stocks_owned)
-        # return median
-        return np.median(cash_array), np.median(stock_array)
 
     def model_update(self):
-        history = self.history_stock
         self.t += 1
-        t = self.t
-        self.stock_price = history[t]
-        self.T = self.external_var[t]
+        old_price = self.stock_price
+        pct = determine_price(self)
+        new_price = old_price + old_price * pct
+        self.stock_price = new_price
+        self.num_available = self.num_available + self.supply - self.demand
+
+
+        self.T = self.external_var[self.t]
         # pct_time = self.t / self.max_steps
-        self.avg_stock_price = np.mean(history[:t+1])
-        self.pct_change = (history[t] - history[t-1]) / history[t-1]
+        self.pct_change = (new_price - old_price) / old_price
         
 
 

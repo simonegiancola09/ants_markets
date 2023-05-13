@@ -1,6 +1,7 @@
 # TODO epysestim notebook on git hub https://github.com/lo-hfk/epyestim
 # has some nice plots about the number of cases and the R number
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import networkx as nx
 import numpy as np
 from  src.modeling.agents_construction import Ant_Financial_Agent, Nest_Model
@@ -11,8 +12,8 @@ from  src.modeling.agents_construction import Ant_Financial_Agent, Nest_Model
 
 def plot_graph(G,
                show_weights = True,
-               save = False, 
-               title = 'A plot'):
+               save = False, save_name = None, 
+               title = 'Graph Visualization'):
     '''
     Plots the graph, either with or without weights
     With the save option allows for prompt saving
@@ -20,7 +21,7 @@ def plot_graph(G,
     '''
     pos = nx.spring_layout(G)
     # nodes
-    nx.draw_networkx_nodes(G, pos, node_size=700)
+    nx.draw_networkx_nodes(G, pos, node_size=10)
     # edges
     nx.draw_networkx_edges(G, pos, width=6)
     # edge weight labels
@@ -34,8 +35,12 @@ def plot_graph(G,
     plt.title(title)
     # save figure for later use
     if save:
-        plt.savefig('./reports/figures/{}.png'.format(title))
-    return plt
+        if save_name is None:
+            plt.savefig('./reports/figures/{}.png'.format(title))
+        else:
+            plt.savefig('./reports/figures/{}.png'.format(save_name))
+    plt.close()
+    return None
 
 
 
@@ -44,42 +49,103 @@ def plot_graph(G,
 
 ##############################################
 
-def plot_agents(nest, save = False, title = 'A plot'):
+def plot_agents(df, nest_pos, radius = 1, hue = 'utility',
+                save = False, save_name = None,
+                title = 'A plot'):
     '''
     Takes a nest and plots its agents on a square and its approximate nest. 
-    nest is a NestModel instance
+    nest is a df_agents resulting from a run call. 
     '''
-    if not isinstance(nest, Nest_Model):
-        raise Exception('Please use as input a NestModel instance')
-    fig, ax = plt.figure(figsize = (20, 20))
-    ax.set_xlim(0,100)
+    # initialize figure
+  
+    fig, ax = plt.subplots(figsize = (20, 20))
+    ax.set_xlim(0,1)
+    ax.set_ylim(0,1)
     ax.set_box_aspect(1)
     # plot the nest center
-    center_coordinates = nest.get_nest_location()
+    center_coordinates = nest_pos
 
     # plot the nest radius circle if it exists
-    try:
-        radius = nest.radius
-    except:
-        radius = False
-    if radius:
+    if radius is not None:
         ax.add_patch(plt.Circle(center_coordinates, radius,
-                                c = 'blue',
+                                color = 'blue',
                                 fill=False,
                                 lw = 10)
                     )
     # plot each agent position
-    for investor in nest.grid.get_all_cell_contents():
-        investor_coordinates = investor.pos
-        investor_state = investor.state
-        # plot a marker, color is chosen by the investor state
-        ax.plot(investor_coordinates[0], investor_coordinates[1],
-                (investor_state == -1) * 'bo' + (investor_state == +1) * 'ro', 
-                markersize = 10
-                )
+    ax.scatter(x = df['cash'], y = df['stocks'],
+                     s = 0.1,
+                    c = df[hue], cmap = plt.cm.get_cmap('RdYlBu')
+                    )
     ax.set_title(title)
-    if save: 
-        plt.savefig('./reports/figures/{}.png'.format(title))
+    # plt.colorbar() #TODO maybe
+    if save:
+        if save_name is None: 
+            fig.savefig('./reports/figures/{}.png'.format(title))
+        else:
+            fig.savefig('./reports/figures/{}.png'.format(save_name))
+    plt.close()
+    return None
+
+def plot_agents_dynamics(df_model, df_agents,
+                         radius = 0.1, hue = 'utility', 
+                         save = False, save_name = None,
+                         title = 'A plot'):
+    '''
+    Takes a nest and plots its agents on a square and its approximate nest. 
+    nest is a df_agents resulting from a run call. 
+    '''
+    # initialize figure
+    # plot the nest center
+    # epochs = df_model.shape[0]
+    nest_centers = df_model.nest_location
+    for i,timely_df in df_agents.groupby(level = 0): #extract dataframes according to first index
+        # first multiindex is timestep, so we extract time step and data from that step
+        fig, ax = plt.subplots()
+        ims = []
+    
+        ax.set_xlim(0,1)
+        ax.set_ylim(0,1)
+        ax.set_box_aspect(1)
+        # get nest center as coordinates in percentages of portfolio
+        center_coordinates = nest_centers[i] / sum(nest_centers[i])
+        # plot circle of hypothetic nest
+        ax.add_patch(plt.Circle(center_coordinates, radius,
+                                color = 'green',
+                                fill=False,
+                                lw = 2)
+                    )
+        # plot each agent position
+        ax.scatter(x = timely_df['cash'], y = timely_df['stocks'],
+                     s = 0.1,
+                    c = timely_df[hue], cmap = plt.cm.get_cmap('RdYlBu')
+                    )
+        ax.set_title(title + ' time = {}'.format(i))
+        # plot also center of nest
+        ax.plot(center_coordinates[0], center_coordinates[1],
+                'go', label='nest center', markersize = 2)
+        ax.legend()
+    # plt.colorbar() #TODO maybe
+        if save:
+            if save_name is None:
+                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'))
+            else:
+                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'))
+
+        plt.close()
+    return None
 
 
-
+def plot_price_dynamics(df, 
+                        save = False, save_name = None,
+                        title = 'A plot'):
+    plt.plot(df['price'], label='Price')
+    plt.title(title)
+    plt.legend()
+    if save:
+        if save_name is None:
+            plt.savefig('./reports/figures/{}.png'.format(title))
+        else:
+            plt.savefig('./reports/figures/{}.png'.format(save_name))
+    plt.close()
+    return None

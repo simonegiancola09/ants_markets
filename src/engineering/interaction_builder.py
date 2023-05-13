@@ -19,7 +19,6 @@ def graph_generator(type = 'Erdos-Renyi',
     
     if type not in potential_graphs:
         raise Exception('type {} is not allowed, please choose one of {}'.format(type, potential_graphs))
-    print('params are', params)
     if type == 'Erdos-Renyi':
         # need n, p params
         G = nx.erdos_renyi_graph(**params)
@@ -36,7 +35,7 @@ def graph_generator(type = 'Erdos-Renyi',
             G[e[0]][e[1]]['weight'] = weights_distribution()
     elif type == 'Powerlaw-Cluster':
         # need n, m, p params
-        nx.powerlaw_cluster_graph(**params)
+        G = nx.powerlaw_cluster_graph(**params)
         for e in G.edges():
             G[e[0]][e[1]]['weight'] = weights_distribution()
     else:
