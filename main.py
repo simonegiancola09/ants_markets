@@ -70,10 +70,10 @@ if __name__ == '__main__':
     ############## HYPERPARAMETERS ###############################
     print('Setting hyperparameters...')
     # here we store some parameters of choice
-    N = 10                  # num of nodes
+    N = 100                 # num of nodes
     M = 10                  # num of edges per node for cluster
     P = 0.6                 # p of connection for erdos renyi and cluster graph
-    epochs = 100            # num of iterations
+    epochs = 1000            # num of iterations
     beta = 1 
     initial_stock_price = 1 # initial stock price
     num_stocks = 200000     # num of available stocks
@@ -83,6 +83,8 @@ if __name__ == '__main__':
     Rt_hyperbolic = np.sin(np.linspace(-5,5, epochs))+1
     Rt_ascending = np.linspace(0,2, num = epochs + 1)
     Rt_null = np.zeros(epochs + 1)
+    # ascending descending
+    Rt_ascending_descending = np.concatenate([np.linspace(0,2, num = epochs // 2),np.linspace(2,0, num = epochs // 2)])
     ######################
     print('Building graphs')
     # below are different types of interaction graphs to test our dynamics
@@ -95,8 +97,8 @@ if __name__ == '__main__':
                                               **{'n' : N, 'm' : M, 'p' : P})
     ######################
     ################ SPECIFIC CHOICES FOR RUNNING ########################
-    G = G_2
-    Rt = Rt_ascending
+    G = G_4
+    Rt = Rt_ascending_descending
     ##########################################################
     ################ MODEL RUN #######################################################
     print('Running ABM...')
