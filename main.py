@@ -30,7 +30,7 @@ if __name__ == '__main__':
                                             # use for covid to calibrate
     print('Your stock of choice is {} in the historical dates {}'.format(stock_name, dates))
     ############## DATA LOADING ###########################################
-    loaded = False                          # run only once, then set as True
+    loaded = True                          # run only once, then set as True
     # if data is not loaded, we load it here
     if not loaded:
         print('Loading data...')

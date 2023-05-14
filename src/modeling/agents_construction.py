@@ -170,7 +170,6 @@ class Ant_Financial_Agent(Agent):
         # will fix how it calculates it to account for no neighbors case
         neighbor_states = np.array([nh.state for nh in self.get_neighbors()])
         num_nh = len(neighbor_states)
-        # TODO need to account for weights
         # notice that the G.nodes() function that gives numbers 0, ..., N - 1
         # is the assignment to the ID of the Mesa Model Class
         # thus, to access weights we can go back to the original interaction_graph instance

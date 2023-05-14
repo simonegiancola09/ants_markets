@@ -1,10 +1,8 @@
-SIMONE
-
-    - mettere a posto financial data, quandl non aggiornato
-    - creare funzione che plotta colonia
-
-DARIO
-    - mettere a posto ABM con gli ultimi pezzi
-        - muovere gli agenti: calcola utility, decide azione in base a utility
-    - Pucciare ABM in modello
-    - check class colony che ha robe interessanti per la fusione
+come priorita metterei:
+- risolvere alcuni TODO ostici negli agents
+- fare la funzione che calibra i dati fittandola contro uno storico degli stock senza covid
+- runnare questa roba qua sopra
+- capire che farsene del raggio
+- controllare in fondo al file degli agents come la roba canonica di lanciare
+ l'ABM possa cambiare da come facciamo noi, lo trovi in fondo al file degli agents 
+ commentato dentro i tripli apostrofi
