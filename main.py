@@ -17,14 +17,21 @@ global_configs.init()
 
 if __name__ == '__main__':
     # here we can attempt to use a function written in another script as below
+    ############## GREETINGS ########################################################
     print('Starting main.py file. Welcome to the pipeline for our project...')
     print('Today we will try to run our model, you are free to choose parameters in the main.py file')
+    print('WARNING: if you encounter issues due to missing modules, there is a requirements.txt file ready for you.')
+    print('In this case, please run on your terminal pip install requirements.txt or what you prefer in your envinroment of choice')
+    ################################################################################################################
     tot_time_start = time.time()
-    loaded = False                          # run only once, then set as True
+    # Please choose here the stock and the dates for calibration 
     stock_name = 'NVDA'                     # name of stock
     dates = ('2020-01-01', '2020-03-31')    # dates for stock data, must be larger than what we
                                             # use for covid to calibrate
     print('Your stock of choice is {} in the historical dates {}'.format(stock_name, dates))
+    ############## DATA LOADING ###########################################
+    loaded = False                          # run only once, then set as True
+    # if data is not loaded, we load it here
     if not loaded:
         print('Loading data...')
         load_time_start = time.time()
@@ -39,7 +46,8 @@ if __name__ == '__main__':
         load_time_end = time.time()
         load_time = load_time_end - load_time_start
         print('Finished downloading datasets in {} seconds'.format(np.round(load_time, 2)))
-    ############## stocks data ###############################
+    ################################################################################################################
+    ############## Stocks data ###############################
     print('Retrieving stock data...')
     df_stocks = pd.read_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name))
     ##########################################################
@@ -57,7 +65,7 @@ if __name__ == '__main__':
     # we use the first iterations to calibrate parameters
     # then we perturb it with an Rt different than zero
     ##########################################################
-    ############## stocks data ###############################
+    ############## HYPERPARAMETERS ###############################
     print('Setting hyperparameters...')
     # here we store some parameters of choice
     N = 10                  # num of nodes
@@ -68,7 +76,7 @@ if __name__ == '__main__':
     initial_stock_price = 1 # initial stock price
     num_stocks = 200000     # num of available stocks
     ##########################################################
-    ############### Availble Choices for toy models #####################
+    ############### CHOICES FOR TOY MODELS #####################
     # below are different types of Rt to test our dynamics
     Rt_hyperbolic = np.sin(np.linspace(-5,5, epochs))+1
     Rt_ascending = np.linspace(0,2, num = epochs + 1)
