@@ -20,8 +20,10 @@ if __name__ == '__main__':
     ############## GREETINGS ########################################################
     print('Starting main.py file. Welcome to the pipeline for our project...')
     print('Today we will try to run our model, you are free to choose parameters in the main.py file')
+    time.sleep(5)
     print('WARNING: if you encounter issues due to missing modules, there is a requirements.txt file ready for you.')
     print('In this case, please run on your terminal pip install requirements.txt or what you prefer in your envinroment of choice')
+    time.sleep(5)
     ################################################################################################################
     tot_time_start = time.time()
     # Please choose here the stock and the dates for calibration 
