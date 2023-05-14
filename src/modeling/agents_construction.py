@@ -31,7 +31,7 @@ def determine_price(model):
 
     dif = model.demand - model.supply
     # volume = model.demand + model.supply
-
+    # 
     pct = dif / model.num_stocks
     return pct
 
@@ -97,7 +97,7 @@ class Ant_Financial_Agent(Agent):
         '''
         Steps:
             1. checks cash is minimum 5 and stocks are nonnegative
-            2. draws alpha randomly -- to be updated
+            2. draws alpha randomly -- to be updated TODO
             3. calculates utility depending on alpha
             4. computes score based on utility: score in [-1, 1] where
                 -1 represents selling everything and 1 buying as much as one can
@@ -125,7 +125,8 @@ class Ant_Financial_Agent(Agent):
             can_buy = np.minimum(self.cash // self.model.stock_price, 1000)
             if (can_buy * willingness) < 0:
                 print('Attention!!!')
-            tentative = np.random.poisson((can_buy * willingness).astype(np.float64))
+            # TODO @Dario added np.abs willingness, does this make sense?
+            tentative = np.random.poisson((can_buy * np.abs(willingness)).astype(np.float64))
             quantity = np.minimum(np.minimum(tentative, can_buy), self.model.num_available)
             self.stocks_owned += quantity
             self.cash -= quantity * self.model.stock_price
@@ -134,8 +135,7 @@ class Ant_Financial_Agent(Agent):
         else:
             self.state = -1
             can_sell = self.stocks_owned
-            if (can_buy * willingness) < 0:
-                print('Attention! number 2')
+            # TODO @Dario, here np.abs to willingness was already present
             tentative = np.random.poisson((can_sell * np.abs(willingness)).astype(np.float64))
             quantity = np.minimum(can_sell, tentative)
             self.stocks_owned -= quantity
@@ -148,6 +148,9 @@ class Ant_Financial_Agent(Agent):
         
 
     def calculate_wealth(self):
+        '''
+        Calculate total wealth of agent
+        '''
         return self.cash + self.stocks_owned * self.model.stock_price
 
     def get_neighbors(self):
@@ -163,12 +166,30 @@ class Ant_Financial_Agent(Agent):
             - mixture of Temperature (Rt) and state behavior of neighbors depending on alpha
             - state represents buying/selling behavior 
         '''
-
+        # TODO utility should depend on price somehow
+        # will fix how it calculates it to account for no neighbors case
         neighbor_states = np.array([nh.state for nh in self.get_neighbors()])
         num_nh = len(neighbor_states)
-        edges_weights = 1
-        u = alpha * (-self.model.T) + (1 - alpha) * np.sum(edges_weights * neighbor_states) / num_nh
-        # TODO adjust to account for no neighbors case
+        # TODO need to account for weights
+        # notice that the G.nodes() function that gives numbers 0, ..., N - 1
+        # is the assignment to the ID of the Mesa Model Class
+        # thus, to access weights we can go back to the original interaction_graph instance
+        # stored in self.G and retrieve each weight 
+        # namely, access the double dictionary of 
+        edges_weights = [self.model.G[self.unique_id][nh.unique_id]['weight'] for nh in self.get_neighbors()]
+        # it could be that if no neighbors are present, the value of the two variables above is 
+        # invalid (empty lists etc), we use a fill value to account for this case and just ignore
+        # the second term of the expression
+        temperature_contrib = alpha * (-self.model.T)
+        # NOTICE: works but given a RuntimeWarning, we could 
+        # fix this in later versions
+        neigh_contrib = np.where((num_nh == 0),
+                                  0, 
+                                  (1 - alpha) * np.sum(edges_weights * neighbor_states) / num_nh)
+        # reads do the multiplication but when the num of neighbors is zero
+        # just put zero
+
+        u = temperature_contrib + neigh_contrib
         return u
 
 
@@ -219,8 +240,10 @@ class Nest_Model(Model):
 
         # collect relevant data
         self.datacollector = DataCollector(
-            agent_reporters = {'cash': 'x',
-                               'stocks': 'y',
+            agent_reporters = {'cash': 'cash',
+                               'wealth': 'wealth',
+                               'x' : 'x',
+                                'y' : 'y',
                                'utility': 'utility',
                                'state' : 'state'
                                },
@@ -260,93 +283,7 @@ class Nest_Model(Model):
 
 
 
-    ################## TENTATIVE ####################################
-# below are some code snippets that could be useful to determine our agents and our model
-# they should be merged with the colony class in the other file
-
-class Investor(Agent):
-    def __init__(self, unique_id, model, cash, stock, likelihood):
-        super().__init__(unique_id, model)
-        self.cash = cash
-        self.stock = stock
-        self.likelihood = likelihood
-        self.state = -1  # -1 for silent, 1 for active
-        self.last_price = None
-
-    def step(self):
-        # Observe external variable
-        external_var = self.model.external_var
-
-        # Observe state of neighbors
-        neighbor_states = [self.model.schedule.agents[neighbor].state for neighbor in self.model.grid.get_neighbors(self.pos)]
-
-        # Observe current stock price
-        current_price = self.model.stock_price
-
-        # Calculate expected return on investment
-        expected_return = self.likelihood * (current_price - self.last_price) / self.last_price
-
-        # Decide whether to buy, sell, or remain silent
-        if self.cash <= 0:
-            self.state = -1
-        elif self.stock <= 0:
-            self.state = 1
-        else:
-            if max(neighbor_states) == 1 and random.random() < 0.5:
-                self.state = -1
-            elif min(neighbor_states) == -1 and random.random() < 0.5:
-                self.state = 1
-            elif expected_return > 0 and random.random() < expected_return:
-                self.state = 1
-            elif expected_return < 0 and random.random() < abs(expected_return):
-                self.state = -1
-            else:
-                self.state = -1
-
-        # Buy, sell, or remain silent
-        if self.state == 1:
-            amount = min(self.cash, self.model.max_trade_size)
-            self.stock += amount / current_price
-            self.cash -= amount
-        elif self.state == -1:
-            pass
-        else:
-            amount = min(self.stock * current_price, self.model.max_trade_size)
-            self.stock -= amount / current_price
-            self.cash += amount
-
-    def calculate_wealth(self):
-        return self.cash + self.stock * self.model.stock_price
-
-class InvestorModel(Model):
-    def __init__(self, num_investors, max_trade_size, external_var, initial_stock_price):
-        self.num_investors = num_investors
-        self.max_trade_size = max_trade_size
-        self.external_var = external_var
-        self.stock_price = initial_stock_price
-        self.schedule = RandomActivation(self)
-        self.grid = NetworkGrid(nx.erdos_renyi_graph(num_investors, 0.5), torus=False)
-
-        # Create investors with random initial capital
-        for i in range(self.num_investors):
-            cash = random.uniform(0, 100)
-            stock = random.uniform(0, 100)
-            likelihood = random.uniform(0, 1)
-            investor = Investor(i, self, cash, stock, likelihood)
-            self.schedule.add(investor)
-            self.grid.place_agent(investor, i)
-
-        # Collect data on investor wealth over time
-        self.datacollector = DataCollector(
-            model_reporters={"Stock Price": lambda m: m.stock_price},
-            agent_reporters={"Wealth": lambda a: a.calculate_wealth()}
-        )
-
-    def step(self):
-        self.stock_price += random.uniform(-self.external_var, self.external_var)
-        self.schedule.step()
-        self.datacollector.collect(self)
-
+  
 
 ''''
 from mesa.visualization.modules import ChartModule

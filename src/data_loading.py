@@ -58,7 +58,7 @@ def load_financial_data(stock_name = 'NVDA', dates = ('2020-01-01', '2020-03-31'
    
 
     # Get data via Yahoo Finance API
-    df_financial = yf.get(stock_name, dates[0], dates[1])
+    df_financial = yf.download(stock_name, dates[0], dates[1])
     # save
     df_financial.to_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name))
 

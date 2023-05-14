@@ -62,6 +62,8 @@ def plot_agents(df, nest_pos, radius = 1, hue = 'utility',
     ax.set_xlim(0,1)
     ax.set_ylim(0,1)
     ax.set_box_aspect(1)
+    ax.set_xlabel('Cash Proportion')
+    ax.set_ylabel('Stock Proportion')
     # plot the nest center
     center_coordinates = nest_pos
 
@@ -87,7 +89,7 @@ def plot_agents(df, nest_pos, radius = 1, hue = 'utility',
     plt.close()
     return None
 
-def plot_agents_dynamics(df_model, df_agents,
+def plot_agents_dynamics_diagonal(df_model, df_agents,
                          radius = 0.1, hue = 'utility', 
                          save = False, save_name = None,
                          title = 'A plot'):
@@ -107,6 +109,8 @@ def plot_agents_dynamics(df_model, df_agents,
         ax.set_xlim(0,1)
         ax.set_ylim(0,1)
         ax.set_box_aspect(1)
+        ax.set_xlabel('Cash Proportion')
+        ax.set_ylabel('Stock Proportion')
         # get nest center as coordinates in percentages of portfolio
         center_coordinates = nest_centers[i] / sum(nest_centers[i])
         # plot circle of hypothetic nest
@@ -116,7 +120,62 @@ def plot_agents_dynamics(df_model, df_agents,
                                 lw = 2)
                     )
         # plot each agent position
-        ax.scatter(x = timely_df['cash'], y = timely_df['stocks'],
+        ax.scatter(x = timely_df['x'], y = timely_df['y'],
+                     s = 0.1,
+                    c = timely_df[hue], cmap = plt.cm.get_cmap('RdYlBu')
+                    )
+        ax.set_title(title + ' time = {}'.format(i))
+        # plot also center of nest
+        ax.plot(center_coordinates[0], center_coordinates[1],
+                'go', label='nest center', markersize = 2)
+        ax.legend()
+    # plt.colorbar() #TODO maybe
+        if save:
+            if save_name is None:
+                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'))
+            else:
+                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'))
+
+        plt.close()
+    return None
+
+def plot_agents_dynamics(df_model, df_agents,
+                         radius = 10, hue = 'utility', 
+                         save = False, save_name = None,
+                         title = 'A plot'):
+    '''
+    Takes a nest and plots its agents on a square and its approximate nest. 
+    nest is a df_agents resulting from a run call. 
+    '''
+    # initialize figure
+    # plot the nest center
+    # epochs = df_model.shape[0]
+    nest_centers = df_model.nest_location
+    # retrieve box size
+    biggest_x = np.max(df_agents['cash'])
+    biggest_y = np.max(df_agents['wealth'] - df_agents['cash'])
+    size_square = np.max([biggest_x, biggest_y])
+
+    for i,timely_df in df_agents.groupby(level = 0): #extract dataframes according to first index
+        # first multiindex is timestep, so we extract time step and data from that step
+        fig, ax = plt.subplots()
+        # ims = []
+    
+        ax.set_xlim(0,size_square)
+        ax.set_ylim(0,size_square)
+        ax.set_box_aspect(1)
+        ax.set_xlabel('Cash')
+        ax.set_ylabel('Stock')
+        # get nest center as coordinates with no normalization
+        center_coordinates = nest_centers[i] 
+        # plot circle of hypothetic nest
+        ax.add_patch(plt.Circle(center_coordinates, radius,
+                                color = 'green',
+                                fill=False,
+                                lw = 2)
+                    )
+        # plot each agent position
+        ax.scatter(x = timely_df['cash'], y = timely_df['wealth'] - timely_df['cash'],
                      s = 0.1,
                     c = timely_df[hue], cmap = plt.cm.get_cmap('RdYlBu')
                     )
@@ -136,12 +195,15 @@ def plot_agents_dynamics(df_model, df_agents,
     return None
 
 
+
 def plot_price_dynamics(df, 
                         save = False, save_name = None,
                         title = 'A plot'):
     plt.plot(df['price'], label='Price')
     plt.title(title)
     plt.legend()
+    plt.xlabel('Time')
+    plt.ylabel('Price')
     if save:
         if save_name is None:
             plt.savefig('./reports/figures/{}.png'.format(title))
