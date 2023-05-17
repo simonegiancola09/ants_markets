@@ -16,7 +16,9 @@ from mesa.space import NetworkGrid
 # here we code a class that 
 
 def run_model(model, epochs, save_info=True):
-    for _ in range(epochs-1):
+    # run an ABM model
+
+    for _ in range(epochs+1):
         model.step()
 
     if save_info:
@@ -26,14 +28,51 @@ def run_model(model, epochs, save_info=True):
         return model_df, agents_df
 
 
+def find_crossing_points(line1, line2):
+    # Find the line with the smaller size
+    if line1.shape[0] <= line2.shape[0]:
+        smaller_line = line1
+        larger_line = line2
+    else:
+        smaller_line = line2
+        larger_line = line1
+    
+    # Calculate the size difference between the two lines
+    size_diff = larger_line.shape[0] - smaller_line.shape[0]
+    
+    # Enlarge the smaller line by appending the last value
+    enlarged_smaller_line = np.concatenate([smaller_line, [smaller_line[-1]] * size_diff])
+    
+    # Calculate the differences between the corresponding y-coordinates
+    y_diff = enlarged_smaller_line[:, 1] - larger_line[:, 1]
+    
+    # Calculate the differences between the corresponding x-coordinates
+    x_diff = enlarged_smaller_line[:, 0] - larger_line[:, 0]
+    
+    # Find the indices where the differences change sign (i.e., where the lines cross)
+    crossings = np.where(np.diff(np.sign(y_diff)) != 0)[0]
+    
+    # Interpolate to find the x-coordinate values at the crossing points
+    for crossing in crossings:
+        x1, y1 = enlarged_smaller_line[crossing]
+        x2, y2 = enlarged_smaller_line[crossing+1]
+        x_crossing = np.interp(0, [y1, y2], [x1, x2])
+        y_crossing = np.interp(x_crossing, [x1, x2], [y1, y2])
+        crossing_points = (x_crossing, y_crossing)
+    
+    return crossing_points
 
-def determine_price(model):
 
-    dif = model.demand - model.supply
+
+def determine_price(model, elasticity):
+
+    excess_demand = model.demand - model.supply
+    # excess_stocks = model.num_stocks - model.num_available
     # volume = model.demand + model.supply
-    # 
-    pct = dif / model.num_stocks
-    return pct
+    pct = excess_demand / model.num_stocks
+    pct = elasticity * pct * model.price
+    new_price = np.maximum(model.price + pct, 0.1)
+    return new_price
 
 def activate(beta, h):
     return np.where((0.5+0.5*np.tanh(beta*h)) > np.random.rand(),1,-1)
@@ -57,33 +96,41 @@ def get_nest_location(model):
     # return median
     return np.median(cash_array), np.median(stock_array)
 
-class Ant_Financial_Agent(Agent):
-    '''
-    Agent describing possible moves of a shareholder
-    '''
-
-    def __init__(self, unique_id, model, cash, stock, risk_propensity, sensitivity=1):
+class Ant_financial_Agent(Agent):
+    def __init__(self, unique_id, model, trader_type, tau, cash, stocks):
         super().__init__(unique_id, model)
-        # individual parameters
+        
+        # Check if type is a number among [0, 1, 2, 3]
+        if trader_type not in [0, 1, 2, 3]:
+            raise ValueError("Invalid type value. Must be one in {0, 1, 2, 3}.")
+        self.type = trader_type
+
+        self.active = 0
         self.cash = cash
-        self.stocks_owned = stock
-        self.utility = 0
-        self.wealth = self.calculate_wealth()
-        self.risk_propensity = risk_propensity
-        self.sensitivity = sensitivity
-        self.state = np.random.choice([1,-1]) # -1 if non actively investing, 1 if investing
-        self.last_price = self.model.stock_price
-        # the position is cash and stock
-        self.x = cash / self.wealth
-        self.y = stock * self.model.stock_price / self.wealth
+        self.stocks = stocks
+        self.tau = tau
+        self.p_f = None
+
+
+        
+    def step1(self):
+        self.activate(self)
+        if self.active:
+            decision, price = self.buy_sell(self)
+            qty = self.determine_quantity(self, decision, price)
+            if decision:
+                self.model.demand.append([qty, price])
+            else:
+                self.model.supply.append([qty, price])
 
     def move(self):
+        
         self.update_position()
 
     def update_position(self):
         wealth = self.calculate_wealth()
         self.x = self.cash / wealth
-        self.y = self.stocks_owned * self.model.stock_price / wealth
+        self.y = self.stocks_owned * self.model.price / wealth
 
 
     def interact(self):
@@ -92,6 +139,10 @@ class Ant_Financial_Agent(Agent):
     def check_status(self):
         self.cash = np.maximum(5, self.cash)
         self.stocks_owned = np.maximum(0, self.stocks_owned)
+        self.active = np.random.choice([1,0])
+
+    def update_alpha(self):
+        pass
 
     def step(self):
         '''
@@ -107,42 +158,52 @@ class Ant_Financial_Agent(Agent):
 
         self.check_status()
 
+
         risk = self.risk_propensity
 
         uncertainty_level = 0
 
-        alpha = np.random.rand()
+        alpha = self.model.rt_perceived
 
-        u = self.calculate_utility(alpha)
-        self.utility = u
+        self.utility += self.calculate_utility(alpha)
+        u = self.utility
 
-        score = 0.5+0.5*np.tanh(risk*u)
+        score = 0.5 + 0.5*np.tanh(risk*u)
 
         willingness = score - self.y
+        self.willingness = willingness
 
         if willingness > 0:
             self.state = 1
-            can_buy = np.minimum(self.cash // self.model.stock_price, 1000)
+            can_buy = np.minimum(self.cash // self.model.price, 200)
             if (can_buy * willingness) < 0:
-                print('Attention!!!')
+                print('Attention!!!', self.cash, self.model.price, can_buy)
             # TODO @Dario added np.abs willingness, does this make sense?
-            tentative = np.random.poisson((can_buy * np.abs(willingness)).astype(np.float64))
+            tentative = np.random.poisson((can_buy * np.abs(willingness)))
             quantity = np.minimum(np.minimum(tentative, can_buy), self.model.num_available)
             self.stocks_owned += quantity
-            self.cash -= quantity * self.model.stock_price
+            self.cash -= quantity * self.model.price
             self.model.demand += quantity
+            self.model.num_available -= quantity
 
         else:
             self.state = -1
             can_sell = self.stocks_owned
-            # TODO @Dario, here np.abs to willingness was already present
-            tentative = np.random.poisson((can_sell * np.abs(willingness)).astype(np.float64))
+
+            try:
+                tentative = np.random.poisson((can_sell * np.abs(willingness)))
+            
+            except:
+                tentative = 0
+                print('wrong selling behavior')
+                print(can_sell)
             quantity = np.minimum(can_sell, tentative)
             self.stocks_owned -= quantity
             if self.stocks_owned < 0:
                 print(quantity, can_sell)
-            self.cash += quantity * self.model.stock_price
+            self.cash += quantity * self.model.price
             self.model.supply += quantity
+            self.model.num_available += quantity
 
         self.move()
         
@@ -151,14 +212,14 @@ class Ant_Financial_Agent(Agent):
         '''
         Calculate total wealth of agent
         '''
-        return self.cash + self.stocks_owned * self.model.stock_price
+        return self.cash + self.stocks_owned * self.model.price
 
-    def get_neighbors(self):
+    def get_neighbors(self, include_center=True):
         '''
         get neighbors of agent
         '''
 
-        return [self.model.schedule.agents[neighbor] for neighbor in self.model.grid.get_neighbors(self.pos, include_center=False)]
+        return [self.model.schedule.agents[neighbor] for neighbor in self.model.grid.get_neighbors(self.pos, include_center=include_center)]
 
     def calculate_utility(self, alpha):
         '''
@@ -175,20 +236,25 @@ class Ant_Financial_Agent(Agent):
         # thus, to access weights we can go back to the original interaction_graph instance
         # stored in self.G and retrieve each weight 
         # namely, access the double dictionary of 
-        edges_weights = [self.model.G[self.unique_id][nh.unique_id]['weight'] for nh in self.get_neighbors()]
+        
+        # edges_weights = [self.model.G[self.unique_id][nh.unique_id]['weight'] for nh in self.get_neighbors()]
+        
+        edges_weights = 1
         # it could be that if no neighbors are present, the value of the two variables above is 
         # invalid (empty lists etc), we use a fill value to account for this case and just ignore
         # the second term of the expression
-        temperature_contrib = alpha * (-self.model.T)
+        temperature_contrib = -alpha*(self.model.T)
         # NOTICE: works but given a RuntimeWarning, we could 
         # fix this in later versions
         neigh_contrib = np.where((num_nh == 0),
                                   0, 
-                                  (1 - alpha) * np.sum(edges_weights * neighbor_states) / num_nh)
+                                  self.model.beta * np.sum(edges_weights * neighbor_states) / num_nh)
         # reads do the multiplication but when the num of neighbors is zero
         # just put zero
 
-        u = temperature_contrib + neigh_contrib
+        price_contrib = -2 * self.model.price_change
+
+        u = temperature_contrib + neigh_contrib #+ price_contrib
         return u
 
 
@@ -203,59 +269,45 @@ class Ant_Financial_Agent(Agent):
         return None
 
 class Nest_Model(Model):
-    '''
-    Model describing investors interacting on a nest structure
-    '''
-    def __init__(self, beta, initial_stock_price, external_var, interaction_graph, num_stocks):
-        # instantiate model at the beginning
-        self.num_agents = interaction_graph.number_of_nodes()
-        self.stock_price = initial_stock_price
-        self.num_stocks = num_stocks
-        self.num_available = num_stocks
-        self.demand = 0
-        self.supply = 0
-        self.pct_change = 0
-        self.beta = beta
-        self.external_var = external_var
-        self.T = external_var[0]
-        # self.max_trade_size = max_trade_size
+    def __init__(self, k, price_history, shock, p, G):
+        super().__init__()
+        self.k = k
+        self.price_history = price_history
+        self.price = price
+        self.shock = shock
+        self.p = p
+        self.G = G
+        self.demand = []
+        self.supply = []
         self.schedule = RandomActivation(self)
-        # graph is an input, can be chosen
-        self.G = interaction_graph
-        self.grid = NetworkGrid(interaction_graph)
+        self.grid = NetworkGrid(G)
         self.t = 0
 
-        
         # create agents
         for i, node in enumerate(self.G.nodes()):
+
+            #instantiate the agents
             cash = random.uniform(500, 1000) 
             stock = random.uniform(0, 10)
-            risk_propensity = random.uniform(0, 1)
-            self.num_available -= stock
-            sensitivity = 1
-            investor = Ant_Financial_Agent(i, self, cash, stock, risk_propensity, sensitivity)
-            self.grid.place_agent(investor, node)
-            self.schedule.add(investor)
+            tau = random.uniform(10, 100)
+            trader_type = np.random.choice([0,1,2,3])
+            agent = Ant_Financial_Agent(i, self, trader_type, tau, cash, stocks)
+            self.grid.place_agent(agent, node)
+            self.schedule.add(agent)
 
         # collect relevant data
         self.datacollector = DataCollector(
-            agent_reporters = {'cash': 'cash',
-                               'wealth': 'wealth',
-                               'x' : 'x',
-                                'y' : 'y',
-                               'utility': 'utility',
-                               'state' : 'state'
+            agent_reporters = {
+                            'cash': 'cash',
+                            'active': 'active'
                                },
-            model_reporters = {'state': compute_magnetization,
-                               'T':'T',
-                               'price':'stock_price',
-                               'nest_location': get_nest_location,
-                               'demand':'demand',
-                               'supply':'supply',
-                               'pct_change':'pct_change',
-                               'stocks_available': 'num_available'
+            model_reporters = {
+                            'state': compute_magnetization,
+                            'T':'T',
+                            'price':'price',
+                            'nest_location': get_nest_location
                                }
-        )
+                            )
 
 
     def step(self):
@@ -265,19 +317,42 @@ class Nest_Model(Model):
         self.schedule.step()
         self.model_update()
 
+    def determine_price(self):
+        supply = np.array(self.supply)
+        demand = np.array(self.demand)
+
+        idx_s = np.argsort(supply[:,0])
+        supply = supply[idx_s]
+        supply[:,1] = supply[:,1].cumsum()
+        
+        idx_d = np.argsort(demand[:,0])
+        demand = demand[idx_d[::-1]]
+        demand[:,1] = demand[:,1].cumsum()
+        demand = demand[idx_d]
+
+        new_price, quantity = find_crossing_points(supply, demand)
+
 
     def model_update(self):
         self.t += 1
-        old_price = self.stock_price
-        pct = determine_price(self)
-        new_price = old_price + old_price * pct
-        self.stock_price = new_price
+        old_price = self.price
+        new_price = determine_price(self, elasticity=0.2)
+        self.price = new_price
+        # new_price = old_price + old_price * pct
+        if new_price < 0:
+            print('negative_price')
+        self.price_change = (new_price - old_price) / old_price
+
         self.num_available = self.num_available + self.supply - self.demand
 
+        if self.t < len(self.external_var):
+            self.T = self.external_var[self.t]
+            self.rt_perceived = self.rt_change[self.t]
 
-        self.T = self.external_var[self.t]
-        # pct_time = self.t / self.max_steps
-        self.pct_change = (new_price - old_price) / old_price
+    def reset(self):
+        self.t = 0
+        self.price_change = 0
+        self.rt_perceived = self.external_var[0]
         
 
 
