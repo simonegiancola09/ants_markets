@@ -28,7 +28,7 @@ def run_model(model, epochs, save_info=True):
         return model_df, agents_df
 
 
-def find_crossing_points(line1, line2):
+def find_crossing_points(line1, line2, old_price):
 
     # Find the line with the smaller size
     if line1.shape[0] <= line2.shape[0]:
@@ -57,7 +57,7 @@ def find_crossing_points(line1, line2):
     crossings = np.where(np.diff(np.sign(y_diff)) != 0)[0]
     
     # Interpolate to find the x-coordinate values at the crossing points
-    crossing_points = 0, 0
+    crossing_points = old_price, 0
     for crossing in crossings:
         x1, y1 = enlarged_smaller_line[crossing]
         x2, y2 = enlarged_smaller_line[crossing+1]
@@ -104,14 +104,13 @@ def get_nest_location(model):
     return np.median(cash_array), np.median(stock_array)
 
 class Ant_Financial_Agent(Agent):
-    def __init__(self, unique_id, model, trader_type, tau, cash, stocks):
+    def __init__(self, unique_id, model, trader_type, tau, cash, stocks, p_f):
         super().__init__(unique_id, model)
         
         # Check if type is a number among [0, 1, 2, 3]
         if trader_type not in [0, 1, 2, 3]:
             raise ValueError("Invalid type value. Must be one in {0, 1, 2, 3}.")
         self.trader_type = trader_type
-        self.order = None
         self.active = 0
         self.cash = cash
         self.stocks = stocks
@@ -119,18 +118,21 @@ class Ant_Financial_Agent(Agent):
         self.wealth = self.calculate_wealth()
         self.x = self.cash / self.wealth
         self.y = self.stocks * self.model.price / self.wealth
-        self.p_f = self.set_pf()
+        self.p_f = self.set_pf(p_f)
+        self.p_i = 0
+        self.quantity = 0
+        self.buy_sell = 0
 
 
     def activate(self):
         self.active = int(self.model.p > np.random.rand())
 
-    def set_pf(self, value=80):
+    def set_pf(self, value=None):
         if value is None:
             return np.mean(self.model.price_history[-self.tau:])
         return value
 
-    def buy_sell(self):
+    def price_and_quantity(self):
         '''
         Doc
 
@@ -142,19 +144,22 @@ class Ant_Financial_Agent(Agent):
 
             if np.random.rand() >= 0.5:
                 ## trader decides to buy
-                buy = 1
+                self.buy_sell = 1
                 adj = np.random.normal(1.01, s_i)
                 if adj > 2:
                     print('attention high variance buy')
                 p_i = self.model.price * np.maximum(adj, 0.5)
                 max_qty = self.cash // p_i
                 if max_qty > 1:
-                    quantity = np.random.randint(1, max_qty)
+                    try:
+                        quantity = np.random.randint(1, max_qty)
+                    except:
+                        print(self.cash, p_i, max_qty, self.model.price)
                 else:
                     quantity = max_qty
             else:
                 ## trader decides to sell
-                buy = 0
+                self.buy_sell = -1
                 adj = np.random.normal(1.01, s_i)
                 if adj > 2:
                     print('attention high variance sell')
@@ -172,7 +177,7 @@ class Ant_Financial_Agent(Agent):
 
             if last_price > self.p_f:
                 ## trader decides to sell
-                buy = 0
+                self.buy_sell = -1
                 p_i = self.p_f
                 max_qty = self.stocks
                 if max_qty > 1:
@@ -182,7 +187,7 @@ class Ant_Financial_Agent(Agent):
 
             else:
                 ## trader decides to buy
-                buy = 1
+                self.buy_sell = 1
                 p_i = self.p_f
                 max_qty = self.cash // p_i
                 if max_qty > 1:
@@ -199,7 +204,7 @@ class Ant_Financial_Agent(Agent):
             p_i = actual_price * (1 + pct_change)
             if pct_change > 0:
                 ## trader decides to buy
-                buy = 1
+                self.buy_sell = 1
                 max_qty = self.cash // p_i
                 if max_qty > 1:
                     quantity = np.random.randint(1, max_qty)
@@ -207,7 +212,7 @@ class Ant_Financial_Agent(Agent):
                     quantity = max_qty
             else:
                 ## trader decides to sell
-                buy = 0
+                self.buy_sell = -1
                 max_qty = self.stocks
                 if max_qty > 1:
                     quantity = np.random.randint(1, max_qty)
@@ -223,7 +228,7 @@ class Ant_Financial_Agent(Agent):
             p_i = actual_price * (1 + pct_change)
             if pct_change <= 0:
                 ## trader decides to buy
-                buy = 1
+                self.buy_sell = 1
                 max_qty = self.cash // p_i
                 if max_qty > 1:
                     quantity = np.random.randint(1, max_qty)
@@ -231,37 +236,42 @@ class Ant_Financial_Agent(Agent):
                     quantity = max_qty
             else:
                 ## trader decides to sell
-                buy = 0
+                self.buy_sell = -1
                 max_qty = self.stocks
                 if max_qty > 1:
                     quantity = np.random.randint(1, max_qty)
                 else:
                     quantity = max_qty
 
-        bundle = buy, p_i, quantity
+        bundle = p_i, quantity
         
         return bundle
 
         
     def step1(self):
+
+        # check whether trader is active
         self.activate()
+
         if self.active:
-            ##place order
-            buy, price, quantity = self.buy_sell()
-            self.order = buy, price, quantity
-            if buy:
+            ## if active, place order
+            price, quantity = self.price_and_quantity()
+            self.p_i = price
+            self.quantity = quantity
+            if self.buy_sell == 1:
                 self.model.demand.append([price, quantity])
             else:
                 self.model.supply.append([price, quantity])
         else:
             #no order issued
-            self.order = None
+            self.buy_sell = 0
 
     def step2(self):
         price = self.model.price
-        if self.order is not None:
-            buy, p_i, quantity = self.order
-            if buy:
+        if self.active:
+            # agent has placed order
+            p_i, quantity = self.p_i, self.quantity
+            if self.buy_sell == 1:
                 ## if decision was to buy 
                 if price <= p_i:
 
@@ -277,6 +287,9 @@ class Ant_Financial_Agent(Agent):
                     self.cash += price * quantity
 
             self.update_position()
+
+    def step(self):
+        pass
 
     def update_position(self):
         wealth = self.calculate_wealth()
@@ -410,7 +423,8 @@ class Ant_Financial_Agent(Agent):
 
 
 class Nest_Model(Model):
-    def __init__(self, k, price_history, shock, p, G, prob_type):
+    def __init__(self, k, price_history, shock, p, G, prob_type, p_f,
+                 cash_low, cash_high, stocks_low, stocks_high):
         super().__init__()
         self.k = k
         self.price_history = price_history[:-1]
@@ -423,21 +437,22 @@ class Nest_Model(Model):
         self.supply = []
         self.schedule = RandomActivation(self)
         self.grid = NetworkGrid(G)
+        self.p_f = p_f
         self.t = 0
 
         # create agents
         for i, node in enumerate(self.G.nodes()):
 
             #instantiate the agents
-            cash = random.uniform(5000, 10000) 
-            stocks = random.randint(20, 50)
+            cash = random.uniform(cash_low, cash_high) 
+            stocks = random.randint(stocks_low, stocks_high)
             trader_type = np.random.choice([0,1,2,3], p = prob_type)
             if np.isin(trader_type, [0,1]):
                 tau = random.randint(10, 100)
             else:
                 tau = random.randint(10, 50)
             
-            agent = Ant_Financial_Agent(i, self, trader_type, tau, cash, stocks)
+            agent = Ant_Financial_Agent(i, self, trader_type, tau, cash, stocks, p_f)
             self.grid.place_agent(agent, node)
             self.schedule.add(agent)
 
@@ -448,7 +463,7 @@ class Nest_Model(Model):
                             'cash': 'cash',
                             'stocks':'stocks',
                             'wealth':'wealth',
-                            'active': 'active'
+                            'buy_sell': 'buy_sell'
                                },
             model_reporters = {
                             'T':'shock',
@@ -461,34 +476,36 @@ class Nest_Model(Model):
 
     def step(self):
         self.datacollector.collect(self)
-
         for agent in self.schedule.agents:
+            # first loop, agents become active and place their orders
+
             agent.step1()
 
         old_price = self.price
         self.price_history.append(old_price)
-        new_price, quantity = self.determine_price()
-        if new_price > 0:
+        if len(self.supply) > 0 and len(self.demand) > 0:
+            # if there are both buyers and sellers, determine new price
+            new_price, quantity = self.determine_price()
             self.price = new_price
             self.volume = quantity
             for agent in self.schedule.agents:
+                # second loop, agents buy or sell depending on new price
                 agent.step2()
         else:
+            # no buyers or no sellers, there are no transactions and
+            # price remains the same
+            print('no update')
             self.price = old_price
-            self.volume = quantity
-            for agent in self.schedule.agents:
-                agent.step2()
+            self.volume = 0
+
+        # reset supply and demand
         self.reset()
+        self.schedule.step()
+
 
     def determine_price(self):
         supply = np.array(self.supply)
         demand = np.array(self.demand)
-
-        if len(supply) == 0:
-            supply = np.array([[0,0]])
-
-        if len(demand) == 0:
-            demand = np.array([[0,0]])
 
         idx_s = np.argsort(supply[:,0])
         supply = supply[idx_s]
@@ -499,7 +516,7 @@ class Nest_Model(Model):
         demand[:,1] = demand[:,1].cumsum()
         demand = demand[idx_d]
 
-        new_price, quantity = find_crossing_points(supply, demand)
+        new_price, quantity = find_crossing_points(supply, demand, self.price)
         return new_price, quantity
 
     def reset(self):
