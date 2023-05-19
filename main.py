@@ -9,6 +9,7 @@ from src import data_loading
 from src.engineering import create_main_df
 from src.engineering import interaction_builder
 from src.visuals import basic_views
+from src.visuals import make_gif
 from src.modeling import agents_construction
 from src.modeling import calibration
 # initialization of Global Variables
@@ -158,7 +159,9 @@ if __name__ == '__main__':
     basic_views.plot_price_dynamics(df_model, save = True, title = 'Price Dynamics')
     basic_views.plot_agents_dynamics(df_model, df_agents, title = 'Nest_all_steps', 
                                              hue = 'state', save = True)
-    # TODO add gif maker already coded
+    make_gif.GIF_creator(directory_source = 'reports/figures/nest_dynamics/', 
+                         filename = 'Nest_all_steps', 
+                         directory_destination = 'reports/figures/')
     plots_time_end = time.time()
     plots_time = plots_time_end - plots_time_start
     print('Plots finished in {} seconds'.format(np.round(plots_time, 2)))
