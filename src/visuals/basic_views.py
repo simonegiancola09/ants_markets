@@ -201,17 +201,18 @@ def plot_agents_dynamics(df_model, df_agents,
 
 
 
-def plot_price_dynamics(df, 
+def plot_macro_dynamics(df, 
                         save = False, save_name = None,
-                        title = 'A plot'):
-    plt.plot(df['price'], label='Price')
-    plt.title(title)
-    plt.legend()
-    plt.xlabel('Time')
-    plt.ylabel('Price')
+                        ):
+    for col in df.columnsç
+        plt.plot(df[col], label=col)
+        plt.title(col + 'dynamics')
+        plt.legend()
+        plt.xlabel('Time')
+        plt.ylabel(col)
     if save:
         if save_name is None:
-            plt.savefig('./reports/figures/{}.png'.format(title))
+            plt.savefig('./reports/figures/{}.png'.format(col))
         else:
             plt.savefig('./reports/figures/{}.png'.format(save_name))
     plt.close()

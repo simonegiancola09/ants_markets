@@ -156,7 +156,7 @@ if __name__ == '__main__':
     # plt.show()
     
     basic_views.plot_graph(G, save = True, title = 'Graph viz')
-    basic_views.plot_price_dynamics(df_model, save = True, title = 'Price Dynamics')
+    basic_views.plot_macro_dynamics(df_model, save = True)
     basic_views.plot_agents_dynamics(df_model, df_agents, title = 'Nest_all_steps', 
                                              hue = 'state', save = True)
     make_gif.GIF_creator(directory_source = 'reports/figures/nest_dynamics/', 
