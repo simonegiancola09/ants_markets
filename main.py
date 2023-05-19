@@ -9,7 +9,7 @@ from src import data_loading
 from src.engineering import create_main_df
 from src.engineering import interaction_builder
 from src.visuals import basic_views
-from src.modeling import agents_construction
+from src.modeling import agents_construction, calibration
 from src import run_ABM
 # initialization of Global Variables
 global_configs.init()
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     tot_time_start = time.time()
     # Please choose here the stock and the dates for calibration 
     stock_name = 'NVDA'                     # name of stock
-    dates = ('2020-01-01', '2020-03-31')    # dates for stock data, must be larger than what we
+    dates = ('2020-01-01', '2020-05-31')    # dates for stock data, must be larger than what we
                                             # use for covid to calibrate
     print('Your stock of choice is {} in the historical dates {}'.format(stock_name, dates))
     ############## DATA LOADING ###########################################
@@ -52,17 +52,17 @@ if __name__ == '__main__':
     ############## Stocks data ###############################
     print('Retrieving stock data...')
     df_stocks = pd.read_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name))
-    ##########################################################
-    ############## Covid Data ###############################
-    print('Retrieving Covid-19 data...')
-    # this dataset has more information than just the Rt
-    df_covid = pd.read_csv('data/engineered/df_covid.csv')
-    # for now, we only retrieve the Rt
-    Rt_real = df_covid['R_mean']
-    # work out additional length
-    additional_length_for_calibration = (pd.to_datetime(dates[0]) - pd.to_datetime('2020-01-01')).days # decide calibration length
-    # obtain an enlarged version of the Rt
-    R_t_real = np.concatenate([np.zeros(additional_length_for_calibration), Rt_real])
+    # ##########################################################
+    # ############## Covid Data ###############################
+    # print('Retrieving Covid-19 data...')
+    # # this dataset has more information than just the Rt
+    # df_covid = pd.read_csv('data/engineered/df_covid.csv')
+    # # for now, we only retrieve the Rt
+    # Rt_real = df_covid['R_mean']
+    # # work out additional length
+    # additional_length_for_calibration = (pd.to_datetime(dates[0]) - pd.to_datetime('2020-01-01')).days # decide calibration length
+    # # obtain an enlarged version of the Rt
+    # R_t_real = np.concatenate([np.zeros(additional_length_for_calibration), Rt_real])
     # enlarge it as to account for when the pandemic was not present
     # we use the first iterations to calibrate parameters
     # then we perturb it with an Rt different than zero
@@ -95,10 +95,12 @@ if __name__ == '__main__':
     G_3 = interaction_builder.graph_generator(type = 'Null', **{'n' : N})
     G_4 = interaction_builder.graph_generator(type = 'Powerlaw-Cluster', 
                                               **{'n' : N, 'm' : M, 'p' : P})
+
     ######################
     ################ SPECIFIC CHOICES FOR RUNNING ########################
     G = G_4
     Rt = Rt_ascending_descending
+
     ##########################################################
     ################ MODEL RUN #######################################################
     print('Running ABM...')
@@ -115,14 +117,21 @@ if __name__ == '__main__':
     model_time_end = time.time()
     model_time = model_time_end - model_time_start
     print('Run ABM finished in {} seconds'.format(np.round(model_time, 2)))
+
+    ##########################################################
+    ############# CALIBRATION ##################################
+
+    
+
+
     ##########################################################
     ################ PLOTS #######################################################
     print('Creating Plots...')
     plots_time_start = time.time()
-    basic_views.plot_graph(G, save = True, title = 'Graph viz')
-    basic_views.plot_price_dynamics(df_model, save = True, title = 'Price Dynamics')
+    basic_views.plot_graph(G, save = False, title = 'Graph viz')
+    basic_views.plot_price_dynamics(df_model, save = False, title = 'Price Dynamics')
     basic_views.plot_agents_dynamics(df_model, df_agents, title = 'Nest_all_steps', 
-                                             hue = 'state', save = True)
+                                             hue = 'state', save = False)
     plots_time_end = time.time()
     plots_time = plots_time_end - plots_time_start
     print('Plots finished in {} seconds'.format(np.round(plots_time, 2)))
