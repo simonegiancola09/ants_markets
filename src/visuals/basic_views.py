@@ -204,7 +204,7 @@ def plot_agents_dynamics(df_model, df_agents,
 def plot_macro_dynamics(df, 
                         save = False, save_name = None,
                         ):
-    for col in df.columnsç
+    for col in df.columns:
         plt.plot(df[col], label=col)
         plt.title(col + 'dynamics')
         plt.legend()
