@@ -62,8 +62,8 @@ def plot_agents(df, nest_pos, radius = 1, hue = 'utility',
     ax.set_xlim(0,1)
     ax.set_ylim(0,1)
     ax.set_box_aspect(1)
-    ax.set_xlabel('Cash Proportion')
-    ax.set_ylabel('Stock Proportion')
+    ax.set_xlabel('Cash')
+    ax.set_ylabel('Stock')
     # plot the nest center
     center_coordinates = nest_pos
 
@@ -80,6 +80,11 @@ def plot_agents(df, nest_pos, radius = 1, hue = 'utility',
                     c = df[hue], cmap = plt.cm.get_cmap('RdYlBu')
                     )
     ax.set_title(title)
+    # plot also center of nest
+    ax.plot(center_coordinates[0], center_coordinates[1],
+                'go', label='nest center', markersize = 2)
+    ax.legend()
+    
     # plt.colorbar() #TODO maybe
     if save:
         if save_name is None: 
@@ -196,17 +201,18 @@ def plot_agents_dynamics(df_model, df_agents,
 
 
 
-def plot_price_dynamics(df, 
+def plot_macro_dynamics(df, 
                         save = False, save_name = None,
-                        title = 'A plot'):
-    plt.plot(df['price'], label='Price')
-    plt.title(title)
-    plt.legend()
-    plt.xlabel('Time')
-    plt.ylabel('Price')
+                        ):
+    for col in df.columns:
+        plt.plot(df[col], label=col)
+        plt.title(col + 'dynamics')
+        plt.legend()
+        plt.xlabel('Time')
+        plt.ylabel(col)
     if save:
         if save_name is None:
-            plt.savefig('./reports/figures/{}.png'.format(title))
+            plt.savefig('./reports/figures/{}.png'.format(col))
         else:
             plt.savefig('./reports/figures/{}.png'.format(save_name))
     plt.close()

@@ -1,6 +1,8 @@
 import numpy as np
-from modeling import agents_construction as ac
+import agents_construction as ac
 from scipy.stats import norm
+import pandas as pd
+from mesa.batchrunner import BatchRunner
 
 def preprocess_data(price_data):
     """
@@ -46,36 +48,53 @@ def metropolis_hastings(model, iterations, param_start, std, true_data, burn_in)
     """
 
     G = model.G
-    num_stocks = model.num_available
-    initial_stock = model.stock_price
+    initial_stock = model.price
     rt = model.external_var
-    beta_start = model.beta
+    alpha_start = model.alpha
+    # we use a lambda function to store the model with all fixed but the 
+    # parameter we wish to fit, in this case alpha but the code can be generalized easily
+    # to fit the cutoff or something else
+    model_pivot = lambda x: ac.Nest_Model(interaction_graph= model.G,
+                                            external_var = model.external_var,
+                                            alpha = x,  #!!!!! here we change !!!!!                     
+                                            cutoff = model.cutoff,
+                                            k = model.k,
+                                            price_history = model.price_history,
+                                            p = model.p,
+                                            prob_type = model.prob_type,
+                                            p_f = model.p_f,
+                                            cash_low = model.cash_low,
+                                            cash_high = model.cash_high,
+                                            stocks_low = model.stocks_low,
+                                            stocks_high =  model.stocks_high)
 
-    epochs = len(true_data) + 1
-    print('model run for: ', epochs)
+    epochs = len(true_data) 
+    print('Calibration of model runs for: ', epochs, 'epochs')
     y_true = preprocess_data(true_data)
 
     df_model, df_agents = ac.run_model(model, epochs)
        
     price = df_model['price'].astype(float)
-
+    print('length of price is', len(price))
     y_hat = preprocess_data(price)
-    print(y_hat.shape, y_true.shape)
+    y_hat = y_hat[:epochs]        # TODO do not understand why it gives a 161 long array with 61 epochs
+                                            # keep only the matching part
+    # print(y_hat.shape, y_true.shape)
 
     llkh_start = compute_log_likelihood(y_hat, true_data)
-    BETAS =[beta_start]
+    ALPHAS =[alpha_start]
     llkh = [llkh_start]
     
     for ITER in range(iterations):
         if ITER % 50 == 0:
-            print(np.round(ITER / iterations*100, 2))
+            print('Reached iteration number {}'.format(np.round(ITER / iterations*100, 2)))
         
-        beta_current = BETAS[-1]
+        alpha_current = ALPHAS[-1]
         llkh_current = llkh[-1]
 
-        beta_new = np.random.normal(beta_current, std, size = 1)
-        model = ac.Nest_Model(beta_new, initial_stock, rt, G, num_stocks)
-        df_model, df_agents = ac.run_model(model, epochs)
+        alpha_new = np.random.normal(alpha_current, std, size = 1)
+        model_new = model_pivot(alpha_new)
+        df_model, df_agents = ac.run_model(model_new, epochs)
         
         price = df_model['price'].astype(float)
 
@@ -83,18 +102,36 @@ def metropolis_hastings(model, iterations, param_start, std, true_data, burn_in)
         print(y_hat.shape, y_true.shape)
         llkh_new = compute_log_likelihood(y_hat, true_data)
 
-        alpha  = np.e**(llkh_new - llkh_current)
+        score_MH  = np.e**(llkh_new - llkh_current)
 
-        if alpha <= np.random.uniform(0,1): 
-            BETAS.append(beta_current)
+        if score_MH <= np.random.uniform(0,1): 
+            ALPHAS.append(alpha_current)
             llkh.append(llkh_current)
 
         else: 
-            BETAS.append(beta_new)
+            ALPHAS.append(alpha_new)
             llkh.append(llkh_new)
       
-        print(BETAS[-1])
-    BETAS = BETAS[burn_in:] 
+        print('Last Value found is {}'.format(np.round(ALPHAS[-1], 2)))     #TODO maybe here we need the mean?? Not the last
+    ALPHAS = ALPHAS[burn_in:] 
     llkh = llkh[burn_in:]
     
-    return np.array(BETAS).flatten(), np.array(llkh).flatten()
+    return {'parameter estimate' : np.mean(ALPHAS),
+            'parameter realizations' : np.array(ALPHAS).flatten(),
+            'likelihood realizations': np.array(llkh).flatten()}
+
+
+def batch_run(model, fixed_params, variable_params, reporters, 
+            epochs, iterations=1):
+    batch_run = BatchRunner(
+                model,
+                variable_params, 
+                fixed_params,
+                iterations,
+                epochs,
+                reporters
+            )
+    batch_run.run_all()
+    run_data = batch_run.get_model_vars_dataframe()
+    return run_data
+
