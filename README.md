@@ -42,4 +42,27 @@ command
 Project Organization
 ------------
 
-  TODO
+  | - local_python_environment
+  | - references
+  | - source
+  |  | - Scripts
+  | - saved_models
+  | - data
+  |  | - raw
+  |  |  | - publication_data
+  |  |  |  | - figures
+  |  |  |  | - data
+  |  | - engineered
+  | - notebooks
+  | - reports
+  |  | - tables
+  |  | - figures
+  |  |  | - nest_dynamics
+  | - src
+  |  | - __pycache__
+  |  | - modeling
+  |  |  | - __pycache__
+  |  | - visuals
+  |  |  | - __pycache__
+  |  | - engineering
+  |  |  | - __pycache__
