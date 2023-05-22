@@ -18,6 +18,10 @@ from mesa.space import NetworkGrid
 
 def test_price_model(p0 = 80, s = 0.1, N = 400, qty_low=0, qty_high=200,
                     factor=1):
+
+    '''
+    FUnzione per provare modello di domanda e offerta
+    '''
     p = np.linspace(0.1, 0.9, 500)
 
     new_prices = []
@@ -91,23 +95,23 @@ def test_price_model(p0 = 80, s = 0.1, N = 400, qty_low=0, qty_high=200,
 
 #     return new_price
 
-def determine_stock_price(supply, demand, randomness=0.1):
-    # Calculate the total supply and demand quantities
-    total_supply = np.sum(supply[:, 1])
-    total_demand = np.sum(demand[:, 1])
+# def determine_stock_price(supply, demand, randomness=0.1):
+#     # Calculate the total supply and demand quantities
+#     total_supply = np.sum(supply[:, 1])
+#     total_demand = np.sum(demand[:, 1])
 
-    # Calculate the weighted average of supply and demand prices based on quantities
-    weighted_supply_price = np.sum(supply[:, 0] * supply[:, 1]) / total_supply
-    weighted_demand_price = np.sum(demand[:, 0] * demand[:, 1]) / total_demand
+#     # Calculate the weighted average of supply and demand prices based on quantities
+#     weighted_supply_price = np.sum(supply[:, 0] * supply[:, 1]) / total_supply
+#     weighted_demand_price = np.sum(demand[:, 0] * demand[:, 1]) / total_demand
 
-    # Calculate the new price as the average of the weighted supply and demand prices with added randomness
-    new_price = (weighted_supply_price + weighted_demand_price) / 2 #* (1 + randomness * np.random.randn())
+#     # Calculate the new price as the average of the weighted supply and demand prices with added randomness
+#     new_price = (weighted_supply_price + weighted_demand_price) / 2 #* (1 + randomness * np.random.randn())
 
-    return new_price
+#     return new_price
 
 def find_crossing_points(line1, line2, old_price, debug=False):
     '''
-    Finds crossing points in the demand and supply. 
+    Finds crossing point (price and quantity) between the demand and supply curves. 
     '''
     if debug:
         plt.plot(line1[:, 0], line1[:, 1])
@@ -203,32 +207,34 @@ class Ant_Financial_Agent(Agent):
             raise ValueError("Invalid type value. Must be one of {0, 1, 2, 3}.")
         # positions in space, absolute
         self.cash = cash
-        self.stocks = stocks    # to properly be a position need to
-                                # multiply it by number of stocks
+        self.stocks = stocks                    # to properly be a position need to
+                                                # multiply it by number of stocks
         self.wealth = self.calculate_wealth()   # total wealth
         # positions in space, relative
         self.x = self.cash / self.wealth
         self.y = self.stocks * self.model.price / self.wealth
         # Ant-Like variables
-        self.utility = 0
-        self.p_buy = 0.5
-        self.p_active = 0.1
-        self.neighbors = None
-        self.edges_weights = None
-        self.nh_states = 0
+        self.p_buy = 0.5                        # prob of buying vs selling
+        self.p_active = 0.1                     # prob of placing an order
+        self.neighbors = None                   # agents' neighbors on graph
+        self.edges_weights = None               # edges weights connecting to neighbors
+        self.nh_states = 0                      # score of neighbors' behavior
         # DemandSupply-Like variables
-        self.tau = tau
-        self.std_price = np.std(self.model.price_history[-tau:])
-        self.trader_type = trader_type # type of trader
-        self.p_f = self.set_pf(p_f)
-        self.p_i = 0
-        self.quantity = 0
-        self.buy_sell = 0 # buy if 1, sell if -1, do almost nothing if 0
-        self.last_order = 0 # saves last order (-1, 0, 1) for each agent: this is what neighbors actually see
+        self.tau = tau                                              # time window - used to evaluate new price according to trader type
+        self.std_price = np.std(self.model.price_history[-tau:])    # std used in the proposal of the new price fro random traders
+        self.trader_type = trader_type                              # type of trader
+        self.p_f = self.set_pf(p_f)                                 # true value of the stock for fundamentalist traders
+        self.p_i = 0                                                # last price proposed
+        self.quantity = 0                                           # last quantity proposed
+        self.buy_sell = 0                                           # buy if 1, sell if -1, do almost nothing if 0
+        self.last_order = 0                                         # saves last order (-1, 0, 1) for each agent: this is what neighbors actually see
     
     ##### GENERAL FUNCTIONS ############################
 
     def config_neighbors(self):
+        '''
+        Instantiates information about neighbors
+        '''
         all_neighbors = self.get_neighbors()
         self.neighbors = all_neighbors
         self.edges_weights = np.array([self.model.G[self.unique_id][nh.unique_id]['weight'] for nh in all_neighbors])
@@ -259,7 +265,10 @@ class Ant_Financial_Agent(Agent):
         '''
         # calcualate prob of placing an order
         p = self.prob_active()
+
+        # record activity probability
         self.p_active = p
+
         if p >= np.random.rand():
             # if active, place order
             price, quantity = self.price_and_quantity()
@@ -269,7 +278,10 @@ class Ant_Financial_Agent(Agent):
 
             # record personal buy / sell qty
             self.quantity = quantity    
+
+            # subtract quantity requested to maximum quantity available (= total number of stocks initially distributed)
             self.model.stocks_left_to_buy -= quantity
+
             if self.buy_sell == 1:
                 # if bought add to demand
                 self.model.demand.append([price, quantity]) 
@@ -282,28 +294,39 @@ class Ant_Financial_Agent(Agent):
             self.buy_sell = 0   
 
     def step2(self):
+        '''
+        After all active agents have placed their orders, new price and quantity to be exchanged determined, 
+        agents buy or sell depending on their previous orders
+        '''
         price = self.model.price
-        # agent has placed order
+        # check whether agent has placed order
         if self.buy_sell != 0:
 
             p_i, quantity = self.p_i, self.quantity
             if self.buy_sell == 1:
                 ## if decision was to buy 
                 if price <= p_i:
+                    ## buy only if price is at most what offered, 
+                    # at maximum quantity available between what previously ordered and what's left
+
                     quantity = np.minimum(quantity, self.model.stocks_left_to_buy)
-                    ## buy only if price is at most what offered
                     self.stocks += quantity
                     self.cash -= price * quantity
+
+                    # update quantity left to be bought
                     self.model.stocks_left_to_buy -= quantity
 
                 
             else:
                 ## decision was to sell
                 if price >= p_i:
-                    ## sell only if price at least what offered
+                    # sell only if price at least what offered, 
+                    # at maximum quantity between what ordered and what's left in the demand
                     quantity = np.minimum(quantity, self.model.stocks_left_to_sell)
                     self.stocks -= quantity
                     self.cash += price * quantity
+
+                    # update quantity left to be sold
                     self.model.stocks_left_to_sell -= quantity
 
             # from the action of buying and selling the agent has moved
@@ -324,7 +347,7 @@ class Ant_Financial_Agent(Agent):
     def prob_active(self):
         '''
         Calculate probability of being active as a function of what neighbors are doing.
-        In particular, if neighbors are evenly distributed between buying/selling, the probability of being active is slow.
+        In particular, if neighbors are evenly distributed between buying/selling, the probability of being active is low.
         However, as soon there are more buyers or sellers, the probability of being active increases.
         '''
         neighbor_states = np.array([nh.last_order for nh in self.neighbors])
@@ -333,19 +356,26 @@ class Ant_Financial_Agent(Agent):
         num_nh = len(neighbor_states)
         # edges_weights = np.ones(num_nh)
         score = np.dot(edges_weights, neighbor_states) / num_nh
+
+        # save score of neighbors' states 
         self.nh_states = score
+
+        # this is not a true distribution but just a way to obtain a value 
+        # between 0 and 1 in a symmetrical way whenever departing from 0
         p_active = 1 - stats.norm(0,.5).pdf(score)
         return p_active
 
     def prob_buy(self):
         '''
-        Calculate probability of buying given external temperature.
+        Calculate probability of buying vs selling given external temperature. 
+        Whenever the temperature is 0, the probability is equal to 0.5, meaning it is equally likely to buy or sell.
         A positive value of T (worsening of a situation) will make traders more prone to sell,
         while a negative value of T (situation getting better) will make traders more prone to buy.
+        The parameter alpha controls the steepeness of the tanh curve hence affecting buying/selling behavior.
         '''
         t = self.model.T 
         alpha = self.model.alpha
-        return stats.norm(loc=0, scale=1).sf(alpha * t)
+        return 0.5 + 0.5 * np.tanh(alpha * t) 
 
     def check_status(self):
         '''
@@ -357,10 +387,6 @@ class Ant_Financial_Agent(Agent):
     def get_neighbors(self):
         '''
         Get neighbors of agent in the graph of the model
-        TODO include center deprecated as it breaks the calculate_utility function
-         basically a graph does not have self loops with weight
-         nevertheless we have that the proper state is highly influential in the decision
-         by the trading type etc.
         '''
         return [self.model.schedule.agents[neighbor]
                 for neighbor in self.model.grid.get_neighbors(self.pos,)]
@@ -371,7 +397,7 @@ class Ant_Financial_Agent(Agent):
     def set_pf(self, value=None):
         '''
         Set true price value fro fundametalist traders. If value is given, set pf to value 
-        else set it as a mean of historical price.
+        else set it as a mean of historical price on a given window determined by tau.
         '''
         if value is None:
             return np.mean(self.model.price_history[-self.tau:])
@@ -384,22 +410,37 @@ class Ant_Financial_Agent(Agent):
         ## random trader
         if self.trader_type == 0: 
 
-            # s_i = self.model.k * np.std(self.model.price_history[-self.tau:])
-            # TODO change later
+            # get std of price proposal 
+            #TODO decide whether to update this continuosly or leave it equal
             s_i = self.std_price
-            # s_i = 1* np.std(self.model.price_history[-self.tau:])
+
+            #calculate probabiity of buying (given the temperature)
             p = self.prob_buy() 
-            p = np.maximum(np.minimum(p, 0.9), 0.1)
+            
+            # bound prob of buying between 0.1 and 0.9 to always have somobody buying and selling
+            p = np.clip(p, 0.1, 0.9)
+
+            # record prob of buying
             self.p_buy = p
+
+            # evaluate mean of new price proposal based on parameter k and the behavior of neighbors
+            # if score of neighbors is negative (majority of them has sold), price is brought down, 
+            # otherwise the price is brought up
             value = self.model.price * (1 + self.model.k * self.nh_states)
+
             if p >= np.random.rand():
                 ## trader decides to buy
                 self.buy_sell = 1
-                adj = np.random.normal(value, s_i)
-                p_i =  adj
+
+                # draw a new price based on updated mean and std of agent
+                p_i =  np.random.normal(value, s_i)
+
+                # determine max quantity to be bought based on cash and stocks availability
                 max_qty = self.cash // p_i
                 max_qty = np.minimum(max_qty, self.model.stocks_left_to_buy) 
                 if max_qty > 1:
+
+                    # buy a random fraction of stocks
                     quantity = np.random.randint(1, max_qty)
 
                 else:
@@ -407,21 +448,28 @@ class Ant_Financial_Agent(Agent):
             else:
                 ## trader decides to sell
                 self.buy_sell = -1
-                adj = np.random.normal(value, s_i)
-                p_i = adj
+
+                # draw a new price based on updated mean and std of agent
+                p_i = np.random.normal(value, s_i)
                 max_qty = self.stocks 
                 if max_qty > 1:
+
+                    # sell a random fraction of stocks available
                     quantity = np.random.randint(1, max_qty)
                 else:
                     quantity = max_qty
 
         ## fundamentalist trader
         elif self.trader_type == 1:
+
+            # TODO here not sure whether to take last price ([-1]) or last price according to tau ([-self.tau])
             last_price = self.model.price_history[-1]
 
             if last_price > self.p_f:
-                ## trader decides to sell
+                ## if last price is higher than 'true value' trader decides to sell
                 self.buy_sell = -1
+
+                # fundamentalist trader always proposes true value
                 p_i = self.p_f
                 max_qty = self.stocks
                 if max_qty > 1:
@@ -430,8 +478,10 @@ class Ant_Financial_Agent(Agent):
                     quantity = max_qty
 
             else:
-                ## trader decides to buy
+                ## if last price is lower than 'true value' trader decides to buy
                 self.buy_sell = 1
+
+                # fundamentalist trader always proposes true value
                 p_i = self.p_f
                 max_qty = self.cash // p_i
                 max_qty = np.minimum(max_qty, self.model.stocks_left_to_buy) 
@@ -442,6 +492,8 @@ class Ant_Financial_Agent(Agent):
 
         ## trend follower (up)
         elif self.trader_type == 2:
+            # trend followers check the behavior of price based on agent's specific time window
+            # and decides to buy if the value is increasing, else sells
             actual_price = self.model.price
             tau = self.tau
             last_price = self.model.price_history[-tau]
@@ -467,6 +519,9 @@ class Ant_Financial_Agent(Agent):
 
         ## trend follower (down)
         else:
+            # trend followers check the behavior of price based on agent's specific time window
+            # and decides to buy if the value is decreasing, else sells
+
             actual_price = self.model.price
             tau = self.tau
             last_price = self.model.price_history[-tau]
@@ -607,28 +662,28 @@ class Nest_Model(Model):
         self.G = interaction_graph
         self.grid = NetworkGrid(interaction_graph)
         self.schedule = RandomActivation(self)
-        self.date = date                    # starting date for simulation
-        self.N = len(interaction_graph.nodes())             # number of agents
-        self.external_var = external_var    # external variable, in our case the Rt
-        self.t = 0                          # number of times it was run
-        self.T = external_var[self.t]
-        self.price = price_history[-1]      # take last price as current
+        self.date = date                            # starting date for simulation
+        self.N = len(interaction_graph.nodes())     # number of agents
+        self.external_var = external_var            # external variable, in our case the Rt
+        self.t = 0                                  # number of times it was run
+        self.T = external_var[self.t]               # temperature at time t
+        self.price = price_history[-1]              # take last price as current
         
         # Ant-Like
-        self.alpha = alpha
-        self.num_stocks_available = 0           # will be populated later
-        self.stocks_left_to_buy = 0
-        self.stocks_left_to_sell = 0
-        self.state = 0
+        self.alpha = alpha                      # parameter controlling impact of temperature on probability of buying/selling
+        self.k = k                              # parameter controlling impact of neighbors on price proposal
+        self.state = 0                          # magnetization of the colony
 
         # DemandSupply-Like
-        self.k = k                              # variance of price decision for random traders
+        self.num_stocks_available = 0           # will be populated later
+        self.stocks_left_to_buy = 0             # available stocks to buy at each period (updated at each time step)
+        self.stocks_left_to_sell = 0            # available stocks to sell at each period (updated at each time step)
         self.price_history = price_history[:-1] # record historical prices
-        self.prob_type = prob_type
-        self.volume = 0
-        self.demand = []                        # or 0
-        self.supply = []                        # or 0
-        self.pct_change = []                    # or 0 TODO
+        self.prob_type = prob_type              # sitribution over traders types
+        self.volume = 0                         # number of stocks exchanged at each time step
+        self.demand = []                        # demand curve 
+        self.supply = []                        # supply curve
+        self.pct_change = []                    # record pct change 
         self.p_f = p_f                          # stock value for fundamentalist traders
         
         # to simplify the input of other functions we also store
@@ -636,6 +691,7 @@ class Nest_Model(Model):
         # this helps us in creating a nice lambda function for calibration
         self.cash_low, self.cash_high = cash_low, cash_high
         self.stocks_low, self.stocks_high = stocks_low, stocks_high
+
         # create agents
         for i, node in enumerate(self.G.nodes()):
             #instantiate the agents
@@ -651,8 +707,12 @@ class Nest_Model(Model):
             # DemandSupply params
             trader_type = np.random.choice([0,1,2,3], p = prob_type)
             if np.isin(trader_type, [0,1]):
+
+                # according to paper of financial simulation, random and fundamentalist traders have a a window between 10 and 100 days
                 tau = random.randint(10, 100)
             else:
+                # according to paper of financial simulation, trend followers traders have a a window between 10 and 50 days
+
                 tau = random.randint(10, 50)
             
             # agent creation 
@@ -696,6 +756,12 @@ class Nest_Model(Model):
 
     ############# MODEL STEP FUNCTIONS ######################
     def step(self):
+        '''
+        Step of the model: 
+        1. collect agents' orders
+        2. determine new price and quantity to be exchanged
+        3. place orders
+        '''
         self.datacollector.collect(self)
         self.stocks_left_to_buy = self.num_stocks_available
         for agent in np.random.permutation(self.schedule.agents):
@@ -711,19 +777,23 @@ class Nest_Model(Model):
         self.price_history.append(old_price)
         # check if some orders where placed
         if len(self.supply) > 0 and len(self.demand) > 0:
+
             # if there are both buyers and sellers, determine new price
             new_price, quantity = self.determine_price(debug=debug)
         else:
-            print('no buy/sellers')
+
+            # either demand or supply is empty
             new_price = old_price
             quantity = 0
+        
+        # update new price, volume and stocs to be exchanged
         self.price = new_price
         self.volume = quantity
         self.stocks_left_to_buy = quantity
         self.stocks_left_to_sell = quantity
 
         for agent in np.random.permutation(self.schedule.agents):
-            # second loop, agents buy or sell depending on new price
+            # second loop, agents buy or sell depending on new price and stock availability
             agent.step2()
        
         # change historical variables anyways
@@ -732,13 +802,13 @@ class Nest_Model(Model):
             self.T = self.external_var[self.t]
         except:
             self.T = self.external_var[-1]
+
         # number of stocks never changes as supply + demand == 0
         # save percentage change in price
         self.pct_change.append((new_price - old_price) / old_price)
         # reset supply and demand
         self.reset()
         # call actual step command
-        
         self.schedule.step()
 
     def compute_magnetization(self):
@@ -794,143 +864,6 @@ class Nest_Model(Model):
     ###################################################################################
     ###################################################################################
 
-
-
-
-# def update_alpha(self):
-    #     pass
-
-    # def step(self):
-    #     '''
-    #     Steps:
-    #         1. checks cash is minimum 5 and stocks are nonnegative
-    #         2. draws alpha randomly -- to be updated 
-    #         3. calculates utility depending on alpha
-    #         4. computes score based on utility: score in [-1, 1] where
-    #             -1 represents selling everything and 1 buying as much as one can
-    #         5. willingness to buy/sell evaluated in comparison with stocks alrady owned
-    #         6. based on willingness, buy/sell a random amount drawn from a poisson distribution
-    #         7. move agents on quadrant based on new cash/stocks'''
-
-    #     self.check_status()
-
-
-    #     risk = self.risk_propensity
-
-    #     uncertainty_level = 0
-
-    #     alpha = self.model.rt_perceived
-
-    #     self.utility += self.calculate_utility(alpha)
-    #     u = self.utility
-
-    #     score = 0.5 + 0.5*np.tanh(risk*u)
-
-    #     willingness = score - self.y
-    #     self.willingness = willingness
-
-    #     if willingness > 0:
-    #         self.state = 1
-    #         can_buy = np.minimum(self.cash // self.model.price, 200)
-    #         if (can_buy * willingness) < 0:
-    #             print('Attention!!!', self.cash, self.model.price, can_buy)
-    #         # @Dario added np.abs willingness, does this make sense?
-    #         tentative = np.random.poisson((can_buy * np.abs(willingness)))
-    #         quantity = np.minimum(np.minimum(tentative, can_buy), self.model.num_available)
-    #         self.stocks_owned += quantity
-    #         self.cash -= quantity * self.model.price
-    #         self.model.demand += quantity
-    #         self.model.num_available -= quantity
-
-    #     else:
-    #         self.state = -1
-    #         can_sell = self.stocks_owned
-
-    #         try:
-    #             tentative = np.random.poisson((can_sell * np.abs(willingness)))
-            
-    #         except:
-    #             tentative = 0
-    #             print('wrong selling behavior')
-    #             print(can_sell)
-    #         quantity = np.minimum(can_sell, tentative)
-    #         self.stocks_owned -= quantity
-    #         if self.stocks_owned < 0:
-    #             print(quantity, can_sell)
-    #         self.cash += quantity * self.model.price
-    #         self.model.supply += quantity
-    #         self.model.num_available += quantity
-
-    #     self.move()
-        
-
-    # def calculate_utility(self, alpha):
-    #     '''
-    #     Should compute some sort of local utility:
-    #         - mixture of Temperature (Rt) and state behavior of neighbors depending on alpha
-    #         - state represents buying/selling behavior 
-    #     '''
-    #     # utility should depend on price somehow
-    #     # will fix how it calculates it to account for no neighbors case
-    #     neighbor_states = np.array([nh.state for nh in self.get_neighbors()])
-    #     num_nh = len(neighbor_states)
-    #     # notice that the G.nodes() function that gives numbers 0, ..., N - 1
-    #     # is the assignment to the ID of the Mesa Model Class
-    #     # thus, to access weights we can go back to the original interaction_graph instance
-    #     # stored in self.G and retrieve each weight 
-    #     # namely, access the double dictionary of 
-        
-    #     # edges_weights = [self.model.G[self.unique_id][nh.unique_id]['weight'] for nh in self.get_neighbors()]
-        
-    #     edges_weights = 1
-    #     # it could be that if no neighbors are present, the value of the two variables above is 
-    #     # invalid (empty lists etc), we use a fill value to account for this case and just ignore
-    #     # the second term of the expression
-    #     temperature_contrib = -alpha*(self.model.T)
-    #     # NOTICE: works but given a RuntimeWarning, we could 
-    #     # fix this in later versions
-    #     neigh_contrib = np.where((num_nh == 0),
-    #                               0, 
-    #                               self.model.beta * np.sum(edges_weights * neighbor_states) / num_nh)
-    #     # reads do the multiplication but when the num of neighbors is zero
-    #     # just put zero
-
-    #     price_contrib = -2 * self.model.price_change
-
-    #     u = temperature_contrib + neigh_contrib #+ price_contrib
-    #     return u
-
-    # def model_update(self):
-    #     self.t += 1
-    #     old_price = self.price
-    #     new_price = determine_price(self, elasticity=0.2)
-    #     self.price = new_price
-    #     # new_price = old_price + old_price * pct
-    #     if new_price < 0:
-    #         print('negative_price')
-    #     self.price_change = (new_price - old_price) / old_price
-
-    #     self.num_available = self.num_available + self.supply - self.demand
-
-    #     if self.t < len(self.external_var):
-    #         self.T = self.external_var[self.t]
-    #         self.rt_perceived = self.rt_change[self.t]
-
-# def determine_price(model, elasticity):
-
-#     excess_demand = model.demand - model.supply
-#     # excess_stocks = model.num_stocks - model.num_available
-#     # volume = model.demand + model.supply
-#     pct = excess_demand / model.num_stocks
-#     pct = elasticity * pct * model.price
-#     new_price = np.maximum(model.price + pct, 0.1)
-#     return new_price
-
-# def activate(beta, h):
- #    '''
- #    Activation function, a sigmoid, RESTORED
- #    '''
- #    return np.where((0.5+0.5*np.tanh(beta*h)) > np.random.rand(),1,-1)
 
         
 
