@@ -41,29 +41,31 @@ command
 
 Project Organization
 ------------
-```
-  | - local_python_environment
-  | - references
-  | - source
-  |  | - Scripts
-  | - saved_models
-  | - data
-  |  | - raw
-  |  |  | - publication_data
+``` bash
+  | - local_python_environment        # the envinroment that will be installed
+  | - references                      # references
+  | - source                          # windows specific
+  |  | - Scripts                      
+  | - saved_models                    # models saved, .json format
+  | - data                            # data repository
+  |  | - raw                  
+  |  |  | - publication_data          # data from Gal 22, eventually not used but there is a script to download it
   |  |  |  | - figures
   |  |  |  | - data
   |  | - engineered
-  | - notebooks
-  | - reports
+  | - notebooks                       # notebooks folder for potential reports, empty
+  | - reports                         # graphical and numerical results in tables and .png figures 
   |  | - tables
   |  | - figures
-  |  |  | - nest_dynamics
+  |  |  | - nest_dynamics             # sub folder with the .png transition to make the .gif of dynamics
   | - src
   |  | - __pycache__
-  |  | - modeling
+  |  | - modeling                     # scripts for modeling
   |  |  | - __pycache__
-  |  | - visuals
+  |  | - visuals                      # scripts for plots
+  |  |  | - __pycache__     
+  |  | - engineering                  # scripts for data manipulation
   |  |  | - __pycache__
-  |  | - engineering
-  |  |  | - __pycache__
+  | - main.py                         # main file to be run, accesses all built in functions automatically, will output basic info on
+                                      # the terminal
   ```
