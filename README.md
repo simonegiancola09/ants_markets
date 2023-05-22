@@ -41,7 +41,7 @@ command
 
 Project Organization
 ------------
-
+```
   | - local_python_environment
   | - references
   | - source
@@ -66,3 +66,4 @@ Project Organization
   |  |  | - __pycache__
   |  | - engineering
   |  |  | - __pycache__
+  ```
