@@ -5,7 +5,7 @@ import glob
 def GIF_creator(directory_source, filename, directory_destination):
     frames = []
     # access a list of pngs in a folder
-    imgs = glob.glob(directory_source + '*.png')
+    imgs = sorted(glob.glob(directory_source + '*.png'))
     for i in imgs:
         # create frame list
         new_frame = Image.open(i)
