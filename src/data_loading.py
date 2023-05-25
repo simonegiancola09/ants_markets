@@ -55,8 +55,6 @@ def load_financial_data(stock_name = 'NVDA', dates = ('2020-01-01', '2020-03-31'
     '''
     Load Financial Data from a common stock to populate the dataframe, choose dates accordingly
     '''
-   
-
     # Get data via Yahoo Finance API
     df_financial = yf.download(stock_name, dates[0], dates[1])
     # save

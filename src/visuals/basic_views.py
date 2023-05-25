@@ -3,8 +3,10 @@
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import networkx as nx
+import pandas as pd
 import numpy as np
-from  src.modeling.agents_construction import Ant_Financial_Agent, Nest_Model
+from  modeling.agents_construction import Ant_Financial_Agent, Nest_Model
+from scipy.stats.mstats import winsorize
 
 ########## GRAPH STRUCTURE PART ##############
 # here we report basic functions to view
@@ -137,15 +139,15 @@ def plot_agents_dynamics_diagonal(df_model, df_agents,
     # plt.colorbar() #TODO maybe
         if save:
             if save_name is None:
-                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'))
+                fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'))
             else:
-                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'))
+                fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'))
 
         plt.close()
     return None
 
 def plot_agents_dynamics(df_model, df_agents,
-                         radius = 10, hue = 'utility', 
+                         radius = 0.1, hue = 'buy_sell', 
                          save = False, save_name = None,
                          title = 'A plot'):
     '''
@@ -155,51 +157,69 @@ def plot_agents_dynamics(df_model, df_agents,
     # initialize figure
     # plot the nest center
     # epochs = df_model.shape[0]
+
     nest_centers = df_model.nest_location
+    df_agents['cash'] = winsorize(df_agents['cash'], limits=[0, 0.1])
+    df_agents['stocks'] = winsorize(df_agents['stocks'], limits=[0, 0.1])
+    df_agents['cash_std'] = (df_agents['cash'] - df_agents.xs(0, level='Step')['cash'].mean()) / df_agents.groupby('Step')['cash'].transform('var')
+    df_agents['stocks_std'] = (df_agents['stocks'] - df_agents.xs(0, level='Step')['stocks'].mean()) / df_agents.groupby('Step')['stocks'].transform('var')
+
+    nest_centers_x = df_agents.groupby('Step')['cash_std'].apply('median')
+    nest_centers_y = df_agents.groupby('Step')['stocks_std'].apply('median')
+
     # retrieve box size
-    biggest_x = np.max(df_agents['cash'])
-    biggest_y = np.max(df_agents['wealth'] - df_agents['cash'])
-    size_square = np.max([biggest_x, biggest_y])
+    biggest_x = np.max(df_agents['cash_std'])
+    biggest_y = np.max(df_agents['stocks_std'])
+    smallest_x = np.min(df_agents['cash_std'])
+    smalles_y = np.min(df_agents['stocks_std'])
+
+    size_square_max = np.max([biggest_x, biggest_y])
+    size_square_min = np.min([smallest_x, smalles_y])
+    colors = ['red', 'blue', 'green']
 
     for i,timely_df in df_agents.groupby(level = 0): #extract dataframes according to first index
         # first multiindex is timestep, so we extract time step and data from that step
         fig, ax = plt.subplots()
         # ims = []
     
-        ax.set_xlim(0,size_square)
-        ax.set_ylim(0,size_square)
+        ax.set_xlim(size_square_min,size_square_max)
+        ax.set_ylim(size_square_min,size_square_max)
         ax.set_box_aspect(1)
         ax.set_xlabel('Cash')
-        ax.set_ylabel('Stock')
+        ax.set_ylabel('Stocks')
         # get nest center as coordinates with no normalization
-        center_coordinates = nest_centers[i] 
+        # center_coordinates = nest_centers[i]
+        center_coordinates = nest_centers_x[i], nest_centers_y[i]
+
         # plot circle of hypothetic nest
         ax.add_patch(plt.Circle(center_coordinates, radius,
-                                color = 'green',
+                                color = 'black',
                                 fill=False,
                                 lw = 2)
                     )
         # plot each agent position
-        ax.scatter(x = timely_df['cash'], y = timely_df['wealth'] - timely_df['cash'],
-                     s = 0.1,
-                    c = timely_df[hue], cmap = plt.cm.get_cmap('RdYlBu')
+        ax.scatter(
+            x = timely_df['cash_std'], 
+            y = timely_df['stocks_std'],
+            s = 0.8,
+            c = timely_df[hue], cmap = plt.cm.get_cmap('RdYlBu')
                     )
         ax.set_title(title + ' time = {}'.format(i))
         # plot also center of nest
         ax.plot(center_coordinates[0], center_coordinates[1],
                 'go', label='nest center', markersize = 2)
-        ax.legend()
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.legend(loc='center right', bbox_to_anchor=(1, 0.5))
     # plt.colorbar() #TODO maybe
         if save:
             if save_name is None:
-                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'))
+                fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'))
             else:
-                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'))
+                fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'))
 
         plt.close()
     return None
-
-
 
 def plot_macro_dynamics(df, 
                         save = False, save_name = None,
@@ -215,5 +235,120 @@ def plot_macro_dynamics(df,
             plt.savefig('./reports/figures/{}.png'.format(col))
         else:
             plt.savefig('./reports/figures/{}.png'.format(save_name))
+    plt.close()
+    return None
+
+def plot_simulation(df, df_model, start, pct=False, 
+                    save=False, save_name=None):
+
+    price_pre = df.loc[df['start'] <= -start, 'Close']
+    price_post = df.loc[df['start'] >= -start, 'Close']
+    
+    full_price = pd.concat([price_pre, df_model['price']]).reset_index(drop=True)
+    idx_start = df.loc[df['start']==0, :].index[0]
+    plt.plot(price_post, ls='--', c='orange', linewidth=1.5, label='True data')
+    plt.plot(full_price, linewidth=2)
+    plt.vlines(price_pre.size, full_price.min(), price_pre.values[-1], ls='dotted', colors='red', label='Simulation starts')
+    plt.vlines(idx_start, full_price.min(), full_price[idx_start], ls='dotted', colors='green', label='Covid starts')
+    plt.legend()       
+    plt.xticks(np.arange(0, df.shape[0], 15), df['Date'][::15], rotation=90)
+    plt.xlabel('Days')
+    plt.ylabel('Price')
+    plt.title('Stock price simulation') 
+    plt.show()
+    if save:
+        if save_name is None:
+            plt.savefig('./reports/figures/{}.png'.format('Price simulation'))
+        else:
+            plt.savefig('./reports/figures/{}.png'.format(save_name))
+    plt.close()
+    return None
+
+
+def plot_multi_run(df, results, start, pct=False, 
+                    save=False, save_name=None):
+
+    price_pre = df.loc[df['start'] <= -start, 'Close']
+    price_post = df.loc[df['start'] >= -start, 'Close']
+
+    # index where simulation begins
+    idx = df.loc[df['start'] == -start, 'Close'].index[0]
+
+    # index where covid begins
+    idx_start = df.loc[df['start']==0, :].index[0]
+
+    # mean and std of simulations
+    sim_mean = results.mean(axis=0)
+    sim_std = results.std(axis=0)
+
+    # full price concatenation
+    full_price = pd.concat([price_pre, pd.Series(sim_mean)]).reset_index(drop=True)
+
+    # index for plotting area
+    x = np.arange(idx, idx + sim_mean.size)
+
+
+    plt.plot(price_post, ls='--', c='orange', linewidth=1.5, label='True data')
+    plt.plot(full_price, linewidth=2)
+
+    plt.fill_between(x, sim_mean + sim_std, sim_mean - sim_std, alpha=0.5)
+    plt.vlines(price_pre.size, full_price.min(), price_pre.values[-1], ls='dotted', colors='red', label='Simulation starts')
+    plt.vlines(idx_start, full_price.min(), full_price[idx_start], ls='dotted', colors='green', label='Covid starts')
+    plt.xticks(np.arange(0, df.shape[0], 15), df['Date'].values[::15], rotation=90)
+    plt.legend()       
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    plt.title('Stock price simulation') 
+    plt.show()
+    if save:
+        if save_name is None:
+            plt.savefig('./reports/figures/{}.png'.format('Price_simulation'))
+        else:
+            plt.savefig('./reports/figures/{}.png'.format(save_name))
+    plt.close()
+    return None
+
+def plot_aggregate(df, df_batch, start, col, plot_true=False,
+                    save=False, save_name=None):
+
+    price_pre = df.loc[df['start'] <= -start, 'Close']
+    price_true = df.loc[df['start'] >= -start, 'Close']
+
+    # index where simulation begins
+    idx = df.loc[df['start'] == -start, 'Close'].index[0]
+    idx_start = df.loc[df['start']==0, :].index[0]
+
+    sim_size = df.index[-1]
+    x = np.arange(idx, sim_size+1)
+
+    plt.plot(price_pre, linewidth=2)
+
+    min_price = min(price_pre)
+
+    for i in range(df_batch.shape[0]):
+        n = df_batch.loc[i, col]
+        price_post = df_batch.loc[i, 'price'][idx:]
+        min_post = min(price_post)
+        if min_post < min_price:
+            min_price = min_post
+        plt.plot(x, price_post, ls='--', label=n)
+
+
+    if plot_true:
+        plt.plot(x, price_true, ls='--', linewidth=1.5, label='True data')
+
+    plt.vlines(price_pre.size, min_price, price_pre.values[-1], ls='dotted', colors='red', label='Simulation starts')
+    plt.vlines(idx_start, min_price, price_true[idx_start], ls='dotted', colors='green', label='Covid starts')
+    plt.xticks(np.arange(0, df.shape[0], 15), df['Date'].values[::15], rotation=90)
+    plt.legend()       
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    plt.title('Stock price simulation - varying graph') 
+    plt.show()
+    if save:
+        if save_name is None:
+            plt.savefig('..\reports\figures\{}.png'.format('Price_simulation_N'))
+        else:
+            plt.savefig('..\reports\figures\{}.png'.format(save_name))
     plt.close()
     return None
