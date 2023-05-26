@@ -13,7 +13,7 @@ from scipy.stats.mstats import winsorize
 # the graph structure chosen
 
 def plot_graph(G,
-               show_weights = True,
+               show_weights = False,
                save = False, save_name = None, 
                title = 'Graph Visualization'):
     '''
@@ -23,9 +23,9 @@ def plot_graph(G,
     '''
     pos = nx.spring_layout(G)
     # nodes
-    nx.draw_networkx_nodes(G, pos, node_size=10)
+    nx.draw_networkx_nodes(G, pos, node_size=1)
     # edges
-    nx.draw_networkx_edges(G, pos, width=6)
+    nx.draw_networkx_edges(G, pos, width=0.2)
     # edge weight labels
     if show_weights:
         edge_labels = nx.get_edge_attributes(G, "weight")
@@ -139,9 +139,9 @@ def plot_agents_dynamics_diagonal(df_model, df_agents,
     # plt.colorbar() #TODO maybe
         if save:
             if save_name is None:
-                fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'))
+                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'))
             else:
-                fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'))
+                fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'))
 
         plt.close()
     return None
@@ -175,7 +175,10 @@ def plot_agents_dynamics(df_model, df_agents,
 
     # size_square_max = np.max([biggest_x, biggest_y])
     # size_square_min = np.min([smallest_x, smalles_y])
-    colors = {-1:'red', 0:'blue', 1:'green'}
+    if len(df_agents[hue].unique()) == 3:
+        colors = {-1:'red', 0:'blue', 1:'green'}
+    else:
+        colors = {0 : 'red', 1: 'green'}
     df_agents['col'] = df_agents[hue].apply(lambda x: colors[x])
 
     for i,timely_df in df_agents.groupby(level = 0): #extract dataframes according to first index
@@ -205,19 +208,29 @@ def plot_agents_dynamics(df_model, df_agents,
             s = 10,
             c = timely_df['col']#, cmap = plt.cm.get_cmap('RdYlBu')
                     )
-        ax.set_title(title + ' time = {}'.format(i))
+        title_i = title + ' time = {}'.format(i)
+        title_i += 'hue is' + hue
+        title_i += '\n Temp = ' + str(df_model['T'][i])
+
+        ax.set_title(title_i)
         # plot also center of nest
         ax.plot(center_coordinates[0], center_coordinates[1],
-                'go', label='nest center', markersize = 2)
+                'go', label='nest center', markersize = 8)
         ax.set_xticks([])
         ax.set_yticks([])
         ax.legend(loc='upper right', bbox_to_anchor=(1.05, 1.))
     # plt.colorbar() #TODO maybe
         if save:
-            if save_name is None:
-                fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'),dpi=600,bbox_inches='tight')
-            else:
-                fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'), dpi=600,bbox_inches='tight')
+            try:
+                if save_name is None:
+                    fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'),dpi=600,bbox_inches='tight')
+                else:
+                    fig.savefig('./reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'), dpi=600,bbox_inches='tight')
+            except:
+                if save_name is None:
+                    fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(title + f'_{i}'),dpi=600,bbox_inches='tight')
+                else:
+                    fig.savefig('../reports/figures/nest_dynamics/{}.png'.format(save_name + f'_{i}'), dpi=600,bbox_inches='tight')
 
         plt.close()
     return None
@@ -226,17 +239,27 @@ def plot_macro_dynamics(df,
                         save = False, save_name = None,
                         ):
     for col in df.columns:
-        plt.plot(df[col], label=col)
-        plt.title(col + 'dynamics')
-        plt.legend()
-        plt.xlabel('Time')
-        plt.ylabel(col)
-    if save:
-        if save_name is None:
-            plt.savefig('./reports/figures/{}.png'.format(col))
-        else:
-            plt.savefig('./reports/figures/{}.png'.format(save_name))
-    plt.close()
+        try:
+            plt.plot(df[col], label=col)
+            plt.title(col + 'dynamics')
+            plt.legend()
+            plt.xlabel('Time')
+            plt.ylabel(col)
+            if save:
+                try:
+                    if save_name is None:
+                        plt.savefig('./reports/figures/{}.png'.format(col))
+                    else:
+                        plt.savefig('./reports/figures/{}.png'.format(save_name + '_' + col))
+                except:
+                    if save_name is None:
+                        plt.savefig('../reports/figures/{}.png'.format(col))
+                    else:
+                        plt.savefig('../reports/figures/{}.png'.format(save_name + '_' + col))
+
+            plt.close()
+        except:
+            pass # the col was not valid
     return None
 
 def plot_simulation(df, df_model, start, pct=False, 
@@ -257,10 +280,17 @@ def plot_simulation(df, df_model, start, pct=False,
     plt.ylabel('Price')
     plt.title('Stock price simulation') 
     if save:
-        if save_name is None:
-            plt.savefig('../reports/figures/{}.png'.format('Price simulation'), dpi=600,bbox_inches='tight')
-        else:
-            plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+        try:
+            if save_name is None:
+                plt.savefig('./reports/figures/{}.png'.format('Price simulation'), dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig('./reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+        except:
+            if save_name is None:
+                plt.savefig('../reports/figures/{}.png'.format('Price simulation'), dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+    
     plt.close()
     return None
 
@@ -301,10 +331,17 @@ def plot_multi_run(df, results, start, pct=False,
     plt.title(title) 
     # plt.show()
     if save:
-        if save_name is None:
-            plt.savefig('../reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
-        else:
-            plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+        try:
+            if save_name is None:
+                plt.savefig('./reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig('./reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+        except:
+            if save_name is None:
+                plt.savefig('../reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+
     plt.close()
     return None
 
@@ -348,9 +385,16 @@ def plot_aggregate(df, df_batch, start, col, plot_true=False,
     # ax.spines['top'].set_visible(False)
     plt.title(title) 
     if save:
-        if save_name is None:
-            plt.savefig('../reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
-        else:
-            plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+        try:
+            if save_name is None:
+                plt.savefig('./reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig('./reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+        except:
+            if save_name is None:
+                plt.savefig('../reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+
     plt.close()
     return None

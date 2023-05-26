@@ -3,7 +3,9 @@
 data/engineered/*
 data/raw/*
 source
-reports/*
+reports/figures/*
+reports/tables/*
+reports/figures/nest_dynamics/*
 # we avoid saving the environment
 # requirements.txt already stores all the 
 # necessary packages

@@ -1,10 +1,12 @@
 from PIL import Image
+from PIL import ImageFile
 import glob
 import re
  
 # Create the frames
 def GIF_creator(directory_source, filename, directory_destination, duration):
     frames = []
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
     # access a list of pngs in a folder
     imgs = sorted(glob.glob(directory_source + '*.png'), key=extract_number)
     for i in imgs:
@@ -12,9 +14,10 @@ def GIF_creator(directory_source, filename, directory_destination, duration):
         new_frame = Image.open(i)
         frames.append(new_frame)
     # create GIF
+    skip = 10
     frames[0].save(directory_destination + filename + '.gif',
                 format='GIF',
-                append_images=frames[1:],
+                append_images=frames[1::skip],
                 save_all=True,
                 duration=duration, loop=0)
 

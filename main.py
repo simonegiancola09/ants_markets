@@ -3,8 +3,6 @@ import time
 import numpy as np
 import pandas as pd
 # our coded functions imports
-import src.global_configs
-import src.data_loading
 from src import global_configs, data_loading
 from src.engineering import create_main_df, interaction_builder
 from src.visuals import basic_views, make_gif
@@ -23,23 +21,32 @@ if __name__ == '__main__':
     print('WARNING: if you encounter issues due to missing modules, there is a requirements.txt file ready for you.')
     print('In this case, please run on your terminal pip install requirements.txt or what you prefer in your envinroment of choice')
     time.sleep(5)
-    print("creating the necessary folders...")
-
-    utils.create_directory(r'reports/outputs')
-    utils.create_directory(r'reports/figures/nest_dynamics')
+    print("Creating the necessary folders...")
+    # if windows OS maybe the first option is better
+    windows = False
+    if windows:
+        utils.create_directory(r'\reports')
+        utils.create_directory(r'\reports\figures')
+        utils.create_directory(r'\reports\outputs')
+        utils.create_directory(r'\reports\figures\nest_dynamics')
+    else:
+        utils.create_directory('./reports')
+        utils.create_directory('./reports/figures')
+        utils.create_directory('./reports/outputs')
+        utils.create_directory('./reports/figures/nest_dynamics')
 
     ################################################################################################################
     tot_time_start = time.time()
     
     # Please choose here the stock and the dates for calibration 
     stock_name = 'NVDA'                     # name of stock
-    dates = ('2019-01-01', '2020-06-30')    # dates for stock data, must be larger than what we
+    dates = ('2019-12-01', '2020-06-30')    # dates for stock data, must be larger than what we
                                             # use for covid to calibrate
     print('Your stock of choice is {} in the historical dates {}'.format(stock_name, dates))
     
     ############## DATA LOADING ###########################################
     # run only once, then set as True
-    loaded = True                          
+    loaded = False                          
     # if data is not loaded, we load it here
     if not loaded:
         print('Loading data...')
@@ -59,28 +66,46 @@ if __name__ == '__main__':
     
     ############## Stocks data ###############################
     print('Retrieving stock data...')
-    df_stocks = pd.read_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name))
+    df_stocks = pd.read_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name),
+                            parse_dates=['Date'])
     ##########################################################
     
     ############## Covid Data ###############################
     print('Retrieving Covid-19 data...')
     # this dataset has more information than just the Rt
-    df_covid = pd.read_csv('data/engineered/df_covid.csv')
+    df_covid = pd.read_csv('data/engineered/df_covid.csv',
+                            parse_dates=True, index_col=0)
 
     ############# Merge Datasets ############################
-    df = pd.merge(df_stocks, df_covid, left_on='Date', right_on='date', how='left')
+    df = pd.merge(df_stocks, df_covid, left_on='Date', right_index=True, how='left')
     # proprocess data to obtain the "temperature" values
+    df.head()
     df = utils.preprocess_data(df) 
     ##########################################################
-    
+    ##### QUICK ATTEMPT VS HEAVY SIMULATION ##################
+    # to let users try the model we will report here two combinations
+    # of parameters that highly influence the duration of the script
+    # once one chooses the parameter below it will interpolate
+    # between two main configs
+    short_sim = 0          # if 1 very short simulation
+    if short_sim:
+        print('Today we will just check that everything works as expected.')
+        print('Do not trust these small size results')
+        time.sleep(3)
+    else:
+        print('Today we will run a heavy simulation')
+        print('it might take a lot of time if your PC is not powerful')
+        time.sleep(3)
+
+
     ############## HYPERPARAMETERS ###############################
     print('Setting hyperparameters...')
     # here we store some parameters of choice
     #### General hypeparams ############
-    N = 600                             # num of nodes
-    M = 10                              # num of edges per node for cluster
-    P = 0.5                             # p of connection for erdos renyi and cluster graph
-    debug=False                         # set to True to visualize supply/demand curves every 5 steps
+    N = 20 * short_sim + 600 * (1 - short_sim)    # num of nodes
+    M = 10                                      # num of edges per node for cluster
+    P = 0.5                                     # p of connection for erdos renyi and cluster graph
+    debug=False                                 # set to True to visualize supply/demand curves every 5 steps
     ##########
     #### Ant-Like hypeparams ############
     alpha = -0.69                       # parameter controlling how much the temperature contributes
@@ -141,7 +166,7 @@ if __name__ == '__main__':
     ##########################################################
 
     ################ MODEL INITIALIZATION #######################################################
-
+    print('Building the first model...')
     model = utils.build_model(df, start, fixed_kwargs)
     model_pre = utils.build_model(df, start_pre, fixed_kwargs)
 
@@ -152,7 +177,7 @@ if __name__ == '__main__':
 
     std = 0.2
     param_start = -0.5
-    iterations_mh = 500
+    iterations_mh = 3 * short_sim + 500 * (1 - short_sim) 
     internal_iterations = 5
     true_data = df.loc[df['start'] > -start, 'Close']
     burn_in = 0
@@ -173,8 +198,11 @@ if __name__ == '__main__':
         burn_in, 
         multi=multi,
         fit_alpha=fit_alpha)
-
-    utils.save_dictionary_to_file(calibration_output, r'reports/outputs/MH_output.txt')
+    if windows:
+        utils.save_dictionary_to_file(calibration_output, r'reports\outputs\MH_output.txt')
+    else:
+        utils.save_dictionary_to_file(calibration_output, 'reports/outputs/MH_output.txt')
+ 
     calibration_time_end = time.time()
     calibration_time = calibration_time_end - calibration_time_start
     print('Calibration finished in {} seconds'.format(np.round(calibration_time, 2)))
@@ -190,36 +218,44 @@ if __name__ == '__main__':
     model_time_end = time.time()
     model_time = model_time_end - model_time_start
     print('Run ABM finished in {} seconds'.format(np.round(model_time, 2)))
-
+    #######################################################
     ################ PLOTS #######################################################
     time.sleep(3)
+    
     print('Creating Plots...')
     plots_time_start = time.time()
     
     basic_views.plot_graph(G, save = True, title = 'Graph viz')
     basic_views.plot_simulation(df, df_model, start, pct=False, save=True, save_name='Single_run_post')
+    basic_views.plot_macro_dynamics(df_model, save = True, save_name='first_attempt')
     basic_views.plot_agents_dynamics(df_model, df_agents, title = 'Nest_all_steps', 
                                              hue = 'buy_sell', save = True)
+    
+    print('Making a GIF might take a lot of time...')
     make_gif.GIF_creator(directory_source = 'reports/figures/nest_dynamics/', 
                          filename = 'Nest_all_steps', 
                          directory_destination = 'reports/figures/',
                          duration=50)
-
     plots_time_end = time.time()
     plots_time = plots_time_end - plots_time_start
     print('Plots finished in {} seconds'.format(np.round(plots_time, 2)))
+    
     ##########################################################
 
     ##########################################################
     ################ MODEL MULTI RUN (COVID ONLY) #######################################################
     print('Starting ABM multiple runs (Covid period only)...')
 
-    iterations_multirun = 10
+    iterations_multirun = 2 * short_sim + 10 * (1 - short_sim)
     model_time_start = time.time()          
     results_post_covid = calibration.multi_run(model=model, epochs=epochs, iterations=iterations_multirun)
     model_time_end = time.time()
-    basic_views.plot_multi_run(df, results_post_covid['prices'], start, save=True, save_name='Multi_run_post_covid',
-    title='Stock price simulation - multiple runs')
+    basic_views.plot_multi_run(df, 
+                               results_post_covid['prices'], 
+                               start, save=True, 
+                               save_name='Multi_run_post_covid',
+                                title='Stock price simulation - multiple runs'
+                                )
     model_time = model_time_end - model_time_start
     print('Multi Run ABM finished in {} seconds'.format(np.round(model_time, 2)))
 
@@ -230,8 +266,12 @@ if __name__ == '__main__':
     model_time_start = time.time()          
     results_pre_covid = calibration.multi_run(model=model_pre, epochs=epochs, iterations=iterations_multirun)
     model_time_end = time.time()
-    basic_views.plot_multi_run(df, results_pre_covid['prices'], start_pre, save=True, save_name='Multi_run_pre_covid',
-    title='Stock price simulation - multiple runs')
+    basic_views.plot_multi_run(df, 
+                                results_pre_covid['prices'], 
+                                start_pre, save=True, 
+                                save_name='Multi_run_pre_covid',
+                                title='Stock price simulation - multiple runs'
+                                )
     model_time = model_time_end - model_time_start
     print('Multi Run ABM finished in {} seconds'.format(np.round(model_time, 2)))
 
@@ -239,21 +279,25 @@ if __name__ == '__main__':
     ################ BATCH RUN (VARYING N) #######################################################
 
     print('Starting batch run varying N (number of agents)...')
-    iterations_batch = 4
+    start_time_varying_N = time.time()
+    iterations_batch = 2 * short_sim + 4 * (1 - short_sim)
     save = True
     save_name = 'batch_run_graph'
     t1 = time.time()
-
+    test_N = True                   # may take a lot of time
     all_graphs = []
-    if test_N:
-        for n in [50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 5000]:
-
-            M = 10
-            P = 0.5
-            Graph = interaction_builder.graph_generator(type = 'Powerlaw-Cluster',
-                        weights_distribution = lambda : weights_distribution, 
-                                            **{'n' : n, 'm' : M, 'p' : P})
-            all_graphs.append(Graph)
+    if not short_sim:
+        # attention, very long!!!!!!!!
+        n_list = [50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 5000]
+    else:
+        n_list = [50, 100, 250]
+    for n in n_list: 
+        M = 10
+        P = 0.5
+        Graph = interaction_builder.graph_generator(type = 'Powerlaw-Cluster',
+                    weights_distribution = lambda : weights_distribution, 
+                                        **{'n' : n, 'm' : M, 'p' : P})
+        all_graphs.append(Graph)
 
     fixed_params = {
         'k' : k, 
@@ -285,12 +329,15 @@ if __name__ == '__main__':
 
     basic_views.plot_aggregate(df, df_N, start, 'N', save=True, save_name='batch_run_N',
     title='Stock price simulation - varying size')
+    end_time_varying_N = time.time()
+    tot_time_varying_N = end_time_varying_N - start_time_varying_N
+    print('Varying number of investors run finished in {} seconds'.format(np.round(tot_time_varying_N, 2)))
 
     ##########################################################
     ################ BATCH RUN (VARYING GRAPH) #######################################################
     print('Starting batch run varying graph type...')
-
-    iterations_batch = 4
+    start_time_varying_graph = time.time()
+    iterations_batch = 2 * short_sim + 10 * (1 - short_sim) 
     graphs = ['Null', 'Clique', 'Erdos-Renyi', 'Powerlaw-Cluster']
     all_graphs = [G_3, G_2, G_1, G_4]
 
@@ -308,10 +355,14 @@ if __name__ == '__main__':
 
     basic_views.plot_aggregate(df, df_graph, start, 'graph_type', save=True, 
                             save_name='batch_run_graph', title='Stock price simulation - varying graph')
+    end_time_varying_graph = time.time()
+    tot_time_varying_graph = end_time_varying_graph - start_time_varying_graph
+    print('Multi Run ABM finished in {} seconds'.format(np.round(tot_time_varying_graph, 2)))
     ######################################################################
 
     tot_time_end = time.time()
     tot_time = tot_time_end - tot_time_start
     print('Computation is finished in a total of {} seconds'.format(np.round(tot_time, 2)))
+
 
 

@@ -1,0 +1,8 @@
+Starting main.py file. Welcome to the pipeline for our project...
+Today we will try to run our model, you are free to choose parameters in the main.py file
+WARNING: if you encounter issues due to missing modules, there is a requirements.txt file ready for you.
+In this case, please run on your terminal pip install requirements.txt or what you prefer in your envinroment of choice
+Creating the necessary folders...
+Your stock of choice is NVDA in the historical dates ('2019-12-01', '2020-06-30')
+Loading data...
+[*********************100%***********************]  1 of 1 completed

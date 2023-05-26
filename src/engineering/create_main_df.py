@@ -35,6 +35,7 @@ def load_R_number_data():
     # use epyestim
     df_R_number = covid19.r_covid(series_covid_US_cases) # estimate R number
     # save into engineered data
+    
     df_R_number.to_csv('data/engineered/R_number_data.csv')
 
 
