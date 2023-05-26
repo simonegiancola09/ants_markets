@@ -44,6 +44,7 @@ def preprocess_data(df, window=5):
     return df
 
 def group_batch(df_batch, group_by, col):
+    df_batch['N'] = df_batch['interaction_graph'].apply(lambda x: len(x.nodes()))
     grouped = df_batch.groupby(group_by)[col].apply(lambda x: np.mean(x.tolist(), axis=0)).reset_index()
     return grouped
 

@@ -82,10 +82,10 @@ if __name__ == '__main__':
     debug=False                         # set to True to visualize supply/demand curves every 5 steps
     ##########
     #### Ant-Like hypeparams ############
-    alpha = -0.8                        # parameter controlling how much the temperature contributes
+    alpha = -0.69                       # parameter controlling how much the temperature contributes
     ##########
     #### DemandSupply-Like hypeparams ############
-    k = 0.09                            # parameter controlling variance of price decision for random traders        
+    k = 0.105                           # parameter controlling variance of price decision for random traders        
     prob_type = [1., 0.0, 0.0, 0.0]     # distribution over types of traders
     p_f = None                          # price value for fundamentalist traders 
                                         # (set to None to automatically give mean price of price history)
@@ -93,9 +93,7 @@ if __name__ == '__main__':
     cash_high = 200000
     stocks_low = 1000
     stocks_high = 5000
-    ##########
-    price = df.loc[df['start'] <= -start, 'Close']
-    ##########################################################
+    #########################
     
     ############### GRAPHS CONSTRUCTION #####################
     # below are different types of Rt to test our dynamics
@@ -123,7 +121,10 @@ if __name__ == '__main__':
     G = G_4                             # graph chosen
     start = 2                           # simulation begins 'start' days before pandemic
     start_pre = 30                      # simulation before covid
-    epochs = df['start'].max() + start  # number of iterations            
+    epochs = df['start'].max() + start  # number of iterations      
+    price = df.loc[df['start'] <= -start, 'Close']
+    Rt = df.loc[df['start'] > -start, 'change_daily'].values
+      
     fixed_kwargs = {
                 'k':k, 
                 'interaction_graph' : G,
@@ -150,7 +151,7 @@ if __name__ == '__main__':
 
     std = 0.2
     param_start = -0.5
-    iterations_mh = 100
+    iterations_mh = 500
     internal_iterations = 5
     true_data = df.loc[df['start'] > -start, 'Close']
     burn_in = 0
@@ -178,6 +179,9 @@ if __name__ == '__main__':
     print('Calibration finished in {} seconds'.format(np.round(calibration_time, 2)))
 
 
+    ### UPDATE ALPHA ACCORDING TO THE VALUE FOUND IN CALIBRATION ####
+    alpha = calibration_output['parameter estimate']
+
     ################ MODEL SINGLE RUN (COVID ONLY) #######################################################
     print('Running ABM...')
     model_time_start = time.time()          
@@ -193,12 +197,12 @@ if __name__ == '__main__':
     
     basic_views.plot_graph(G, save = True, title = 'Graph viz')
     basic_views.plot_simulation(df, df_model, start, pct=False, save=True, save_name='Single_run_post')
-    basic_views.plot_macro_dynamics(df_model, save = True)
     basic_views.plot_agents_dynamics(df_model, df_agents, title = 'Nest_all_steps', 
                                              hue = 'buy_sell', save = True)
     make_gif.GIF_creator(directory_source = 'reports/figures/nest_dynamics/', 
                          filename = 'Nest_all_steps', 
-                         directory_destination = 'reports/figures/')
+                         directory_destination = 'reports/figures/',
+                         duration=50)
 
     plots_time_end = time.time()
     plots_time = plots_time_end - plots_time_start
@@ -207,21 +211,26 @@ if __name__ == '__main__':
 
     ##########################################################
     ################ MODEL MULTI RUN (COVID ONLY) #######################################################
-    
+    print('Starting ABM multiple runs (Covid period only)...')
+
     iterations_multirun = 10
     model_time_start = time.time()          
     results_post_covid = calibration.multi_run(model=model, epochs=epochs, iterations=iterations_multirun)
     model_time_end = time.time()
-    basic_views.plot_multi_run(df, results_post_covid['prices'], start, save=True, save_name='Multi_run_post_covid')
+    basic_views.plot_multi_run(df, results_post_covid['prices'], start, save=True, save_name='Multi_run_post_covid',
+    title='Stock price simulation - multiple runs')
     model_time = model_time_end - model_time_start
     print('Multi Run ABM finished in {} seconds'.format(np.round(model_time, 2)))
 
     ##########################################################
     ################ MODEL MULTI RUN (BEFORE COVID) #######################################################
+    print('Starting ABM multiple runs...')
+
     model_time_start = time.time()          
     results_pre_covid = calibration.multi_run(model=model_pre, epochs=epochs, iterations=iterations_multirun)
     model_time_end = time.time()
-    basic_views.plot_multi_run(df, results_pre_covid['prices'], start_pre, save=True, save_name='Multi_run_pre_covid')
+    basic_views.plot_multi_run(df, results_pre_covid['prices'], start_pre, save=True, save_name='Multi_run_pre_covid',
+    title='Stock price simulation - multiple runs')
     model_time = model_time_end - model_time_start
     print('Multi Run ABM finished in {} seconds'.format(np.round(model_time, 2)))
 
@@ -273,12 +282,14 @@ if __name__ == '__main__':
 
     df_N = utils.group_batch(df_batch_N, 'N', 'price')
 
-    basic_views.plot_aggregate(df, df_N, start, 'N', save=True, save_name='batch_run_N')
+    basic_views.plot_aggregate(df, df_N, start, 'N', save=True, save_name='batch_run_N',
+    title='Stock price simulation - varying size')
 
     ##########################################################
     ################ BATCH RUN (VARYING GRAPH) #######################################################
     print('Starting batch run varying graph type...')
 
+    iterations_batch = 10
     graphs = ['Null', 'Clique', 'Erdos-Renyi', 'Powerlaw-Cluster']
     all_graphs = [G_3, G_2, G_1, G_4]
 
@@ -286,19 +297,16 @@ if __name__ == '__main__':
         'interaction_graph' : all_graphs
     }
     
-    t1 = time.time()
-
     df_batch_graph = calibration.batch_run(
         agents_construction.Nest_Model, variable_params, fixed_params, reporters, 
         epochs, iterations=iterations_batch)
 
     df_batch_graph['graph_type'] = [g for g in graphs for _ in range(iterations_batch)]
 
-    t2 = time.time()
-
     df_graph = utils.group_batch(df_batch_graph, 'graph_type', 'price')
 
-    basic_views.plot_aggregate(df, df_graph, start, 'graph_type', save=True, save_name='batch_run_graph')
+    basic_views.plot_aggregate(df, df_graph, start, 'graph_type', save=True, 
+                            save_name='batch_run_graph', title='Stock price simulation - varying graph')
     ######################################################################
 
     tot_time_end = time.time()

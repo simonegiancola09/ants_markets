@@ -10,7 +10,7 @@ from visuals import basic_views, make_gif
 
 if __name__ == '__main__':
 
-    np.random.seed(40)
+    np.random.seed(1999)
     df_price = pd.read_csv(r'..\data\raw\financial_US_NVDA_raw.csv')
     # df_covid = pd.read_csv(r'..\data\raw\covid_US_raw.csv')
     df_rt = pd.read_csv(r'..\data\engineered\df_covid.csv')
@@ -36,10 +36,10 @@ if __name__ == '__main__':
     epochs = df['start'].max() + start 
 
     # epochs = 10
-    run_batch = False
+    run_batch = True
     mh = False
     multi_run = False
-    debug = True
+    debug = False
     price = df.loc[df['start'] <= -start, 'Close']
     graph_type = None
     # number of nodes
@@ -54,12 +54,12 @@ if __name__ == '__main__':
     # k = 0.09
     # alpha = -0.8
     #        
-    k = .15
+    k = .105
     ## parameter controlling role of Temperature on buy/sell
-    alpha = -0.7
+    alpha = -0.69
 
     # distribution over types of traders
-    prob_type = [1., 0., 0., 0.]
+    prob_type = [1., 0., 0.0, 0.0]
     # price value for fundamentalist traders 
     # (set to None to automatically give mean price of price history)
     p_f = 75
@@ -71,20 +71,11 @@ if __name__ == '__main__':
     stocks_low = 1000
     stocks_high = 100
 
+    Rt = df.loc[df['start'] > -start, 'change_daily'].values
 
-    ##########################################################
-    ############### CHOICES FOR TOY MODELS #####################
-    # below are different types of Rt to test our dynamics
-    Rt_hyperbolic = np.sin(np.linspace(0,3, epochs))+1
-    Rt_ascending = np.linspace(0,2, num = epochs + 1)
-    Rt_null = np.zeros(epochs + 1)
-    weights_distribution = np.random.uniform(0.8,1.2)
-    
-    # ascending descending
-    Rt_ascending_descending = np.concatenate([np.linspace(0,2, num = epochs // 2),np.linspace(2,0, num = epochs // 2)])
-    Rt_fake = np.r_[np.zeros(epochs//4), np.linspace(0,2, num = epochs // 4),np.linspace(2,0, num = epochs // 4), np.zeros(epochs//4)]
     ######################
     print('Building graphs')
+    weights_distribution = np.random.uniform(0.8,1.2)
     # below are different types of interaction graphs to test our dynamics
     G_1 = interaction_builder.graph_generator(type = 'Erdos-Renyi',
                         weights_distribution = lambda : weights_distribution,
@@ -119,20 +110,20 @@ if __name__ == '__main__':
 
     if mh:
         print('Starting MH...')
-        filename = 'MH_run_k'
+        filename = 'final_MH'
 
         t1 = time.time()
         std = 0.2
-        param_start = 0.5
-        iterations = 200
+        param_start = -0.5
+        iterations = 150
         internal_iterations = 5
         true_data = df.loc[df['start'] > -start, 'Close']
         burn_in = 0
         multi=False
-        fit_alpha=False
+        fit_alpha=True
         loss = calibration.compute_log_likelihood
         preprocess = True
-        results = calibration.metropolis_hastings(
+        results_mh = calibration.metropolis_hastings(
             model, 
             iterations, 
             internal_iterations,
@@ -148,7 +139,7 @@ if __name__ == '__main__':
         t2 = time.time()
         elapsed = (t2 - t1) / 60
         print('MH running time:', np.round(elapsed, 2), ' minutes')
-        utils.save_dictionary_to_file(results, rf'..\reports\outputs\{filename}.txt')
+        utils.save_dictionary_to_file(results_mh, rf'..\reports\outputs\{filename}.txt')
 
 
     if run_batch:
@@ -158,7 +149,7 @@ if __name__ == '__main__':
         save = True
         test_N = False
         test_graph=True
-        save_name = 'batch_run_graph'
+        save_name = 'batch_run_N'
         t1 = time.time()
 
         all_graphs = []
@@ -213,6 +204,8 @@ if __name__ == '__main__':
             agents_construction.Nest_Model, variable_params, fixed_params, reporters, 
             epochs, iterations=iterations)
 
+        
+
         t2 = time.time()
         if test_graph:
 
@@ -220,15 +213,21 @@ if __name__ == '__main__':
 
         elapsed1 = (t2 - t1) / 60
         print('Batch running time:', np.round(elapsed1, 2), ' minutes')
-        
+
+
         if save:
             df_batch.to_csv(r'..\reports\outputs\{}.csv'.format(save_name))
 
+        grouped_batch = utils.group_batch(df_batch, 'graph_type', 'price')
+        basic_views.plot_aggregate(df, grouped_batch, start, 'graph_type', plot_true=False,
+                    save=True, save_name='batch_graph', title='Stock price simulation - varying graph')
+
     if multi_run:
 
-        iterations = 3
-        results = calibration.multi_run(model, epochs, iterations)
-        basic_views.plot_multi_run(df, results['prices'], start)
+        iterations = 10
+        results_multi = calibration.multi_run(model, epochs, iterations)
+        basic_views.plot_multi_run(df, results_multi['prices'], start,
+        save=True, save_name='multi_run_pre', title='Stock price simulation - multiple runs')
 
 
     else:
@@ -239,14 +238,15 @@ if __name__ == '__main__':
 
         basic_views.plot_agents_dynamics(
                         df_model, df_agents,
-                         radius = 0.3, hue = 'buy_sell', 
+                         radius = 1, hue = 'buy_sell', 
                          save = True, save_name = None,
                          title = 'A plot')
 
         make_gif.GIF_creator(
             directory_source=r'../reports/figures/nest_dynamics/', 
             filename='GIF1', 
-            directory_destination=r'../reports/figures/nest_dynamics/')
+            directory_destination=r'../reports/figures/nest_dynamics/', 
+            duration=50)
         
         
         full_price = pd.concat([price, df_model['price']]).reset_index(drop=True)

@@ -3,7 +3,7 @@ import glob
 import re
  
 # Create the frames
-def GIF_creator(directory_source, filename, directory_destination):
+def GIF_creator(directory_source, filename, directory_destination, duration):
     frames = []
     # access a list of pngs in a folder
     imgs = sorted(glob.glob(directory_source + '*.png'), key=extract_number)
@@ -16,7 +16,7 @@ def GIF_creator(directory_source, filename, directory_destination):
                 format='GIF',
                 append_images=frames[1:],
                 save_all=True,
-                duration=300, loop=0)
+                duration=duration, loop=0)
 
 def extract_number(file_name):
     # Extract the numeric part using regular expression

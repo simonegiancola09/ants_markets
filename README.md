@@ -66,6 +66,8 @@ Project Organization
   |  |  | - __pycache__     
   |  | - engineering                  # scripts for data manipulation
   |  |  | - __pycache__
+  |  | - utils                        # scripts for general purpose
+  |  |  | - __pycache__
   | - main.py                         # main file to be run, accesses all built in functions automatically, will output basic info on
                                       # the terminal
   ```
