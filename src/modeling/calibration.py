@@ -1,5 +1,5 @@
 import numpy as np
-import modeling.agents_construction as ac
+import src.modeling.agents_construction as ac
 from scipy.stats import norm
 import pandas as pd
 from mesa.batchrunner import BatchRunner

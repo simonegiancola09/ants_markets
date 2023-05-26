@@ -1,6 +1,6 @@
 import os
 import sys
-from modeling import agents_construction
+from src.modeling import agents_construction
 import numpy as np
 import pandas as pd
 

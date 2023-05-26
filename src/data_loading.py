@@ -1,7 +1,7 @@
 # load here data from financial markets and from the paper
 # "The emergence of a collective sensory response threshold in ant colonies" 
 # by Gal and Kronauer.
-import global_configs 
+import src.global_configs 
 import pandas as pd
 import os
 from zipfile import ZipFile

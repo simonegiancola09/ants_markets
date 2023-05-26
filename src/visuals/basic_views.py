@@ -5,7 +5,7 @@ import matplotlib.animation as animation
 import networkx as nx
 import pandas as pd
 import numpy as np
-from  modeling.agents_construction import Ant_Financial_Agent, Nest_Model
+from  src.modeling.agents_construction import Ant_Financial_Agent, Nest_Model
 from scipy.stats.mstats import winsorize
 
 ########## GRAPH STRUCTURE PART ##############

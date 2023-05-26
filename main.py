@@ -3,6 +3,8 @@ import time
 import numpy as np
 import pandas as pd
 # our coded functions imports
+import src.global_configs
+import src.data_loading
 from src import global_configs, data_loading
 from src.engineering import create_main_df, interaction_builder
 from src.visuals import basic_views, make_gif
@@ -22,10 +24,9 @@ if __name__ == '__main__':
     print('In this case, please run on your terminal pip install requirements.txt or what you prefer in your envinroment of choice')
     time.sleep(5)
     print("creating the necessary folders...")
-    utils.create_directory(r'\reports')
-    utils.create_directory(r'\reports\figures')
-    utils.create_directory(r'\reports\outputs')
-    utils.create_directory(r'\reports\figures\nest_dynamics')
+
+    utils.create_directory(r'reports/outputs')
+    utils.create_directory(r'reports/figures/nest_dynamics')
 
     ################################################################################################################
     tot_time_start = time.time()
@@ -173,7 +174,7 @@ if __name__ == '__main__':
         multi=multi,
         fit_alpha=fit_alpha)
 
-    utils.save_dictionary_to_file(calibration_output, r'reports\outputs\MH_output.txt')
+    utils.save_dictionary_to_file(calibration_output, r'reports/outputs/MH_output.txt')
     calibration_time_end = time.time()
     calibration_time = calibration_time_end - calibration_time_start
     print('Calibration finished in {} seconds'.format(np.round(calibration_time, 2)))
@@ -289,7 +290,7 @@ if __name__ == '__main__':
     ################ BATCH RUN (VARYING GRAPH) #######################################################
     print('Starting batch run varying graph type...')
 
-    iterations_batch = 10
+    iterations_batch = 4
     graphs = ['Null', 'Clique', 'Erdos-Renyi', 'Powerlaw-Cluster']
     all_graphs = [G_3, G_2, G_1, G_4]
 
