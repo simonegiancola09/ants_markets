@@ -4,9 +4,9 @@ from src.modeling import agents_construction
 import numpy as np
 import pandas as pd
 
-def build_model(df, start, kwargs):
+def build_model(df, start, kwargs, T='change_daily'):
     price = df.loc[df['start'] <= -start, 'Close']
-    Rt = df.loc[df['start'] > -start, 'change_daily'].values
+    Rt = df.loc[df['start'] > -start, T].values
     model = agents_construction.Nest_Model(external_var=Rt,
                                     price_history=list(price), 
                                     **kwargs)
@@ -23,17 +23,16 @@ def create_directory(directory):
         print(f"Directory '{directory}' created.")
     
 def preprocess_data(df, window=5):
-    df.rename(columns = {'R_mean': 'Rt'}, inplace = True)
     df['cases'] = df['cases'].fillna(0)
     df['daily_cases'] = df['cases'].diff().fillna(0)
     df['change_daily'] = df['daily_cases'].rolling(window=window, min_periods=1).mean().pct_change()
     df.loc[np.isinf(df['change_daily']), 'change_daily'] = 0.1
 
     df['start'] = 0
-    idx_covid = (df['daily_cases'] == 0)==False
+    idx_covid = df['date'].isna()==False
 
     df.loc[idx_covid, 'start'] = np.arange(0, idx_covid.sum())
-    df.loc[(df['daily_cases'] == 0), 'start'] = np.arange(-1, -((df['daily_cases'] == 0).sum()+1), -1)[::-1]
+    df.loc[df['date'].isna(), 'start'] = np.arange(-1, -(df['date'].isna().sum()+1), -1)[::-1]
 
     ## compute Rt percentage change
     df['change'] = df['Rt'].pct_change()

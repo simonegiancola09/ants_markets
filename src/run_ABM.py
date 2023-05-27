@@ -1,12 +1,25 @@
-from modeling import agents_construction, calibration
-from engineering import interaction_builder
+# from modeling import agents_construction, calibration
+# from engineering import interaction_builder
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import time
-from utils import utils
-from visuals import basic_views, make_gif
+# from utils import utils
+# from visuals import basic_views, make_gif
 
+df_price = pd.read_csv(r'..\data\raw\financial_US_NVDA_raw.csv')
+# df_covid = pd.read_csv(r'..\data\raw\covid_US_raw.csv')
+df_rt = pd.read_csv(r'..\data\engineered\df_covid.csv')
+
+df_rt.columns = ['date', 'cases', 'Rt', 'R_var']
+# df_covid['daily_cases'] = df_covid['cases'].diff().fillna(0)
+
+# compute daily cases and pct change in daily cases
+
+window = 5
+
+# merge two datasets
+df = pd.merge(df_price, df_rt, left_on='Date', right_on='date', how='left')
 
 if __name__ == '__main__':
 

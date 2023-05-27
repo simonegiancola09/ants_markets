@@ -36,14 +36,12 @@ if __name__ == '__main__':
         utils.create_directory('./reports/outputs')
         utils.create_directory('./reports/figures/nest_dynamics')
 
-
-
     ################################################################################################################
     tot_time_start = time.time()
     
     # Please choose here the stock and the dates for calibration 
     stock_name = 'NVDA'                     # name of stock
-    dates = ('2019-12-01', '2020-06-30')    # dates for stock data, must be larger than what we
+    dates = ('2019-01-01', '2020-06-30')    # dates for stock data, must be larger than what we
                                             # use for covid to calibrate
     print('Your stock of choice is {} in the historical dates {}'.format(stock_name, dates))
     
@@ -69,18 +67,18 @@ if __name__ == '__main__':
     
     ############## Stocks data ###############################
     print('Retrieving stock data...')
-    df_stocks = pd.read_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name),
-                            parse_dates=['Date'])
+    df_stocks = pd.read_csv('data/raw/financial_US_{}_raw.csv'.format(stock_name))
     ##########################################################
     
     ############## Covid Data ###############################
     print('Retrieving Covid-19 data...')
     # this dataset has more information than just the Rt
-    df_covid = pd.read_csv('data/engineered/df_covid.csv',
-                            parse_dates=True, index_col=0)
+    df_covid = pd.read_csv('data/engineered/df_covid.csv')
+
+    df_covid.columns = ['date', 'cases', 'Rt', 'R_var']
 
     ############# Merge Datasets ############################
-    df = pd.merge(df_stocks, df_covid, left_on='Date', right_index=True, how='left')
+    df = pd.merge(df_stocks, df_covid, left_on='Date', right_on='date', how='left')
     # proprocess data to obtain the "temperature" values
     df.head()
     df = utils.preprocess_data(df) 
@@ -90,7 +88,7 @@ if __name__ == '__main__':
     # of parameters that highly influence the duration of the script
     # once one chooses the parameter below it will interpolate
     # between two main configs
-    short_sim = 0          # if 1 very short simulation
+    short_sim = 1          # if 1 very short simulation
     if short_sim:
         print('Today we will just check that everything works as expected.')
         print('Do not trust these small size results')
@@ -105,7 +103,8 @@ if __name__ == '__main__':
     print('Setting hyperparameters...')
     # here we store some parameters of choice
     #### General hypeparams ############
-    N = 20 * short_sim + 600 * (1 - short_sim)    # num of nodes
+    T = 'change_daily'
+    N = 400 * short_sim + 600 * (1 - short_sim)    # num of nodes
     M = 10                                      # num of edges per node for cluster
     P = 0.5                                     # p of connection for erdos renyi and cluster graph
     debug=False                                 # set to True to visualize supply/demand curves every 5 steps
@@ -152,7 +151,7 @@ if __name__ == '__main__':
     start_pre = 30                      # simulation before covid
     epochs = df['start'].max() + start  # number of iterations      
     price = df.loc[df['start'] <= -start, 'Close']
-    Rt = df.loc[df['start'] > -start, 'change_daily'].values
+    Rt = df.loc[df['start'] > -start, T].values
       
     fixed_kwargs = {
                 'k':k, 
@@ -170,10 +169,11 @@ if __name__ == '__main__':
 
     ################ MODEL INITIALIZATION #######################################################
     print('Building the first model...')
-    model = utils.build_model(df, start, fixed_kwargs)
-    model_pre = utils.build_model(df, start_pre, fixed_kwargs)
+    model = utils.build_model(df, start, fixed_kwargs, T)
+    model_pre = utils.build_model(df, start_pre, fixed_kwargs, T)
 
     ############# CALIBRATION ##################################
+    '''
     time.sleep(3)
     print('Calibration of Pandemic contribution...')
     calibration_time_start = time.time()
@@ -209,14 +209,15 @@ if __name__ == '__main__':
     calibration_time_end = time.time()
     calibration_time = calibration_time_end - calibration_time_start
     print('Calibration finished in {} seconds'.format(np.round(calibration_time, 2)))
-
+    '''
 
     ### UPDATE ALPHA ACCORDING TO THE VALUE FOUND IN CALIBRATION ####
     # alpha = calibration_output['parameter estimate']
-
+    alpha = -0.69     # value found
     ################ MODEL SINGLE RUN (COVID ONLY) #######################################################
     print('Running ABM...')
-    model_time_start = time.time()          
+    model_time_start = time.time()     
+    model = utils.build_model(df, start, fixed_kwargs, T)
     df_model, df_agents = agents_construction.run_model(model=model, epochs=epochs)
     model_time_end = time.time()
     model_time = model_time_end - model_time_start
@@ -250,7 +251,8 @@ if __name__ == '__main__':
     print('Starting ABM multiple runs (Covid period only)...')
 
     iterations_multirun = 2 * short_sim + 10 * (1 - short_sim)
-    model_time_start = time.time()          
+    model_time_start = time.time()   
+    model = utils.build_model(df, start, fixed_kwargs, T)
     results_post_covid = calibration.multi_run(model=model, epochs=epochs, iterations=iterations_multirun)
     model_time_end = time.time()
     basic_views.plot_multi_run(df, 
@@ -293,7 +295,7 @@ if __name__ == '__main__':
         # attention, very long!!!!!!!!
         n_list = [50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 5000]
     else:
-        n_list = [50, 100, 250]
+        n_list = [100, 250]
     for n in n_list: 
         M = 10
         P = 0.5
@@ -341,6 +343,21 @@ if __name__ == '__main__':
     print('Starting batch run varying graph type...')
     start_time_varying_graph = time.time()
     iterations_batch = 2 * short_sim + 10 * (1 - short_sim) 
+    graphs = ['Null', 'Clique', 'Erdos-Renyi', 'Powerlaw-Cluster']
+    all_graphs = [G_3.copy(), G_2.copy(), G_1.copy(), G_4.copy()]
+
+    G_1 = interaction_builder.graph_generator(type = 'Erdos-Renyi',
+                        weights_distribution = lambda : weights_distribution,
+                        **{'n':N, 'p':P})
+    G_2 = interaction_builder.graph_generator(type = 'Clique', 
+                        weights_distribution = lambda : weights_distribution,
+                        **{'n' : N})
+    G_3 = interaction_builder.graph_generator(type = 'Null',
+                        weights_distribution = lambda : weights_distribution,
+                        **{'n' : N})
+    G_4 = interaction_builder.graph_generator(type = 'Powerlaw-Cluster',
+                        weights_distribution = lambda : weights_distribution, 
+                                            **{'n' : N, 'm' : M, 'p' : P})
     graphs = ['Null', 'Clique', 'Erdos-Renyi', 'Powerlaw-Cluster']
     all_graphs = [G_3, G_2, G_1, G_4]
 

@@ -173,6 +173,11 @@ def metropolis_hastings(
         llkh_current = llkh[-1]
 
         alpha_new = np.random.normal(alpha_current, std)
+        if alpha_new > 0:
+            PROPOSALS.append(alpha_new)
+            ALPHAS.append(alpha_current)
+            llkh.append(llkh_current)
+            continue
         PROPOSALS.append(alpha_new)
         model_new = model_pivot(alpha_new)
 
