@@ -104,7 +104,7 @@ if __name__ == '__main__':
     # here we store some parameters of choice
     #### General hypeparams ############
     T = 'change_daily'
-    N = 400 * short_sim + 600 * (1 - short_sim)    # num of nodes
+    N = 100 * short_sim + 500 * (1 - short_sim)    # num of nodes
     M = 10                                      # num of edges per node for cluster
     P = 0.5                                     # p of connection for erdos renyi and cluster graph
     debug=False                                 # set to True to visualize supply/demand curves every 5 steps
