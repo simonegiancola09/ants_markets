@@ -150,7 +150,7 @@ if __name__ == '__main__':
     start = 2                           # simulation begins 'start' days before pandemic
     start_pre = 30                      # simulation before covid
     epochs = df['start'].max() + start  # number of iterations  
-    epochs_pre = df['start'].max() + start    
+    epochs_pre = df['start'].max() + start_pre    
     price = df.loc[df['start'] <= -start, 'Close']
     Rt = df.loc[df['start'] > -start, T].values
       
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     model_pre = utils.build_model(df, start_pre, fixed_kwargs, T)
 
     ############# CALIBRATION ##################################
-    
+    '''
     time.sleep(3)
     print('Calibration of Pandemic contribution...')
     calibration_time_start = time.time()
@@ -203,14 +203,14 @@ if __name__ == '__main__':
         multi=multi,
         fit_alpha=fit_alpha)
     if windows:
-        utils.save_dictionary_to_file(calibration_output, r'reports\outputs\MH_output.txt')
+        utils.save_dictionary_to_file(calibration_output, 'reports/outputs/MH_output.txt')
     else:
         utils.save_dictionary_to_file(calibration_output, 'reports/outputs/MH_output.txt')
  
     calibration_time_end = time.time()
     calibration_time = calibration_time_end - calibration_time_start
     print('Calibration finished in {} seconds'.format(np.round(calibration_time, 2)))
-    
+    '''
 
     ### UPDATE ALPHA ACCORDING TO THE VALUE FOUND IN CALIBRATION ####
     # alpha = calibration_output['parameter estimate']
