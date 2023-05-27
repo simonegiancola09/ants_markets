@@ -25,15 +25,18 @@ if __name__ == '__main__':
     # if windows OS maybe the first option is better
     windows = False
     if windows:
-        utils.create_directory(r'\reports')
-        utils.create_directory(r'\reports\figures')
-        utils.create_directory(r'\reports\outputs')
-        utils.create_directory(r'\reports\figures\nest_dynamics')
+        utils.create_directory('reports')
+        utils.create_directory('reports/figures')
+        utils.create_directory('reports/outputs')
+        utils.create_directory('reports/figures/nest_dynamics')
+
     else:
         utils.create_directory('./reports')
         utils.create_directory('./reports/figures')
         utils.create_directory('./reports/outputs')
         utils.create_directory('./reports/figures/nest_dynamics')
+
+
 
     ################################################################################################################
     tot_time_start = time.time()
@@ -46,7 +49,7 @@ if __name__ == '__main__':
     
     ############## DATA LOADING ###########################################
     # run only once, then set as True
-    loaded = False                          
+    loaded = True                          
     # if data is not loaded, we load it here
     if not loaded:
         print('Loading data...')
@@ -209,7 +212,7 @@ if __name__ == '__main__':
 
 
     ### UPDATE ALPHA ACCORDING TO THE VALUE FOUND IN CALIBRATION ####
-    alpha = calibration_output['parameter estimate']
+    # alpha = calibration_output['parameter estimate']
 
     ################ MODEL SINGLE RUN (COVID ONLY) #######################################################
     print('Running ABM...')

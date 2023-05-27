@@ -166,8 +166,7 @@ def run_model(model, epochs, save_info=True):
 
     for _ in range(epochs):
         model.step()
-        if model.t / epochs == 0.5:
-            print(f'50% completed')
+
 
     if save_info:
         model_df = model.datacollector.get_model_vars_dataframe()
