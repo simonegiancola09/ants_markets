@@ -149,7 +149,8 @@ if __name__ == '__main__':
     G = G_4                             # graph chosen
     start = 2                           # simulation begins 'start' days before pandemic
     start_pre = 30                      # simulation before covid
-    epochs = df['start'].max() + start  # number of iterations      
+    epochs = df['start'].max() + start  # number of iterations  
+    epochs_pre = df['start'].max() + start    
     price = df.loc[df['start'] <= -start, 'Close']
     Rt = df.loc[df['start'] > -start, T].values
       
@@ -269,7 +270,7 @@ if __name__ == '__main__':
     print('Starting ABM multiple runs...')
 
     model_time_start = time.time()          
-    results_pre_covid = calibration.multi_run(model=model_pre, epochs=epochs, iterations=iterations_multirun)
+    results_pre_covid = calibration.multi_run(model=model_pre, epochs=epochs_pre, iterations=iterations_multirun)
     model_time_end = time.time()
     basic_views.plot_multi_run(df, 
                                 results_pre_covid['prices'], 
@@ -343,8 +344,6 @@ if __name__ == '__main__':
     print('Starting batch run varying graph type...')
     start_time_varying_graph = time.time()
     iterations_batch = 2 * short_sim + 10 * (1 - short_sim) 
-    graphs = ['Null', 'Clique', 'Erdos-Renyi', 'Powerlaw-Cluster']
-    all_graphs = [G_3.copy(), G_2.copy(), G_1.copy(), G_4.copy()]
 
     G_1 = interaction_builder.graph_generator(type = 'Erdos-Renyi',
                         weights_distribution = lambda : weights_distribution,
