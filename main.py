@@ -171,6 +171,7 @@ if __name__ == '__main__':
     model_pre = utils.build_model(df, start_pre, fixed_kwargs)
 
     ############# CALIBRATION ##################################
+    '''
     time.sleep(3)
     print('Calibration of Pandemic contribution...')
     calibration_time_start = time.time()
@@ -206,11 +207,11 @@ if __name__ == '__main__':
     calibration_time_end = time.time()
     calibration_time = calibration_time_end - calibration_time_start
     print('Calibration finished in {} seconds'.format(np.round(calibration_time, 2)))
-
+    '''
 
     ### UPDATE ALPHA ACCORDING TO THE VALUE FOUND IN CALIBRATION ####
-    alpha = calibration_output['parameter estimate']
-
+    # alpha = calibration_output['parameter estimate']
+    alpha = -1.2664124139390913     # value found
     ################ MODEL SINGLE RUN (COVID ONLY) #######################################################
     print('Running ABM...')
     model_time_start = time.time()          
@@ -339,7 +340,7 @@ if __name__ == '__main__':
     start_time_varying_graph = time.time()
     iterations_batch = 2 * short_sim + 10 * (1 - short_sim) 
     graphs = ['Null', 'Clique', 'Erdos-Renyi', 'Powerlaw-Cluster']
-    all_graphs = [G_3, G_2, G_1, G_4]
+    all_graphs = [G_3.copy(), G_2.copy(), G_1.copy(), G_4.copy()]
 
     variable_params = {
         'interaction_graph' : all_graphs
