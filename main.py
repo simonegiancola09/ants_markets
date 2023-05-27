@@ -88,7 +88,7 @@ if __name__ == '__main__':
     # of parameters that highly influence the duration of the script
     # once one chooses the parameter below it will interpolate
     # between two main configs
-    short_sim = 1          # if 1 very short simulation
+    short_sim = 0          # if 1 very short simulation
     if short_sim:
         print('Today we will just check that everything works as expected.')
         print('Do not trust these small size results')
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     print('Setting hyperparameters...')
     # here we store some parameters of choice
     #### General hypeparams ############
-    T = 'change_daily'
+    T = 'change_daily'                             # "Temperature" parameter
     N = 100 * short_sim + 500 * (1 - short_sim)    # num of nodes
     M = 10                                      # num of edges per node for cluster
     P = 0.5                                     # p of connection for erdos renyi and cluster graph
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     model_pre = utils.build_model(df, start_pre, fixed_kwargs, T)
 
     ############# CALIBRATION ##################################
-    '''
+    
     time.sleep(3)
     print('Calibration of Pandemic contribution...')
     calibration_time_start = time.time()
@@ -210,7 +210,7 @@ if __name__ == '__main__':
     calibration_time_end = time.time()
     calibration_time = calibration_time_end - calibration_time_start
     print('Calibration finished in {} seconds'.format(np.round(calibration_time, 2)))
-    '''
+    
 
     ### UPDATE ALPHA ACCORDING TO THE VALUE FOUND IN CALIBRATION ####
     # alpha = calibration_output['parameter estimate']
