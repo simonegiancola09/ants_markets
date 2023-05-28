@@ -398,3 +398,69 @@ def plot_aggregate(df, df_batch, start, col, plot_true=False,
 
     plt.close()
     return None
+
+def plot_chain(output_MH, save=False, save_name=None, title='A plot'):
+    chain = output_MH['parameter realizations']
+    param = output_MH['parameter estimate']
+    plt.plot(chain, label='Realizations', linewidth=2)
+    plt.hlines(param, 0, len(chain)-1, ls='--', colors='red', label='Mean', linewidth=1.5)
+    plt.legend()       
+    plt.xticks(np.arange(0, len(chain), 25), np.arange(0, len(chain), 25))
+    plt.xlabel('Iterations')
+    plt.ylabel('Parameter value')
+
+    plt.title(title)
+    if save:
+        try:
+            if save_name is None:
+                plt.savefig('./reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig('./reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+        except:
+            if save_name is None:
+                plt.savefig('../reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+
+    plt.show()
+    plt.close()
+
+
+def scatter_with_bar():
+
+    # Sample data
+    x = np.linspace(-1, 1, 100)
+    y = np.sin(x)
+    bar_height = 2
+
+    # Create scatter plot
+    fig, ax1 = plt.subplots()
+    ax1.scatter(x, y, label='Scatter Plot')
+    ax1.set_xlabel('X')
+    ax1.set_ylabel('Y')
+
+    # Adjust the plot size to accommodate the bar plot
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+    # Create the bar plot outside the scatter plot
+
+    ax2 = fig.add_axes([box.x0 + box.width * 0.82, box.y0, 0.05, box.height])
+    ax2.bar(0, bar_height, width=0.05, align='center', color='red', alpha=0.5, edgecolor='black', bottom=-1)
+    ax2.axhline(y=0,  linewidth=4)
+    ax2.set_ylim(-1, 1)
+    ax2.set_yticks(np.linspace(-1, 1, 11))
+    ax2.set_xticks([])
+    ax2.set_xlabel('T')
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    ax2.spines['bottom'].set_visible(False)
+
+    ax2.yaxis.tick_right()
+    ax2.yaxis.set_label_position("right")
+
+    # Show the plot
+    plt.show()
+
+

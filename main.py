@@ -88,7 +88,7 @@ if __name__ == '__main__':
     # of parameters that highly influence the duration of the script
     # once one chooses the parameter below it will interpolate
     # between two main configs
-    short_sim = 0          # if 1 very short simulation
+    short_sim = 1          # if 1 very short simulation
     if short_sim:
         print('Today we will just check that everything works as expected.')
         print('Do not trust these small size results')
@@ -174,14 +174,14 @@ if __name__ == '__main__':
     model_pre = utils.build_model(df, start_pre, fixed_kwargs, T)
 
     ############# CALIBRATION ##################################
-    '''
+    
     time.sleep(3)
     print('Calibration of Pandemic contribution...')
     calibration_time_start = time.time()
 
     std = 0.2
     param_start = -0.5
-    iterations_mh = 3 * short_sim + 500 * (1 - short_sim) 
+    iterations_mh = 5 * short_sim + 500 * (1 - short_sim) 
     internal_iterations = 5
     true_data = df.loc[df['start'] > -start, 'Close']
     burn_in = 0
@@ -209,8 +209,10 @@ if __name__ == '__main__':
  
     calibration_time_end = time.time()
     calibration_time = calibration_time_end - calibration_time_start
+
+    basic_views.plot_chain(calibration_output, save=True, save_name='MH_chain', title='Metropolis Hastings chain')
     print('Calibration finished in {} seconds'.format(np.round(calibration_time, 2)))
-    '''
+    
 
     ### UPDATE ALPHA ACCORDING TO THE VALUE FOUND IN CALIBRATION ####
     # alpha = calibration_output['parameter estimate']
