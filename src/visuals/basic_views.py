@@ -209,13 +209,13 @@ def plot_agents_dynamics(df_model, df_agents,
             c = timely_df['col']#, cmap = plt.cm.get_cmap('RdYlBu')
                     )
         title_i = title + ' time = {}'.format(i)
-        title_i += 'hue is' + hue
+        title_i += ' hue is' + hue
         title_i += '\n Temp = ' + str(df_model['T'][i])
 
         ax.set_title(title_i)
         # plot also center of nest
         ax.plot(center_coordinates[0], center_coordinates[1],
-                'go', label='nest center', markersize = 8)
+                'co', label='nest center', markersize = 8)
         ax.set_xticks([])
         ax.set_yticks([])
         ax.legend(loc='upper right', bbox_to_anchor=(1.05, 1.))
