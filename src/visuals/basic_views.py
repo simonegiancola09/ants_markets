@@ -15,7 +15,7 @@ from scipy.stats.mstats import winsorize
 def plot_graph(G,
                show_weights = False,
                save = False, save_name = None, 
-               title = 'Graph Visualization'):
+               title = 'Graph Visualization', show=False):
     '''
     Plots the graph, either with or without weights
     With the save option allows for prompt saving
@@ -41,6 +41,8 @@ def plot_graph(G,
             plt.savefig('./reports/figures/{}.png'.format(title))
         else:
             plt.savefig('./reports/figures/{}.png'.format(save_name))
+    if show:
+        plt.show()
     plt.close()
     return None
 
@@ -263,7 +265,7 @@ def plot_macro_dynamics(df,
     return None
 
 def plot_simulation(df, df_model, start, pct=False, 
-                    save=False, save_name=None):
+                    save=False, save_name=None, show=False):
 
     price_pre = df.loc[df['start'] <= -start, 'Close']
     price_post = df.loc[df['start'] >= -start, 'Close']
@@ -290,13 +292,15 @@ def plot_simulation(df, df_model, start, pct=False,
                 plt.savefig('../reports/figures/{}.png'.format('Price simulation'), dpi=600,bbox_inches='tight')
             else:
                 plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
-    
+    if show:
+        plt.show()
+
     plt.close()
     return None
 
 
 def plot_multi_run(df, results, start, pct=False, 
-                    save=False, save_name=None, title='A plot'):
+                    save=False, save_name=None, title='A plot', show=False):
 
     price_pre = df.loc[df['start'] <= -start, 'Close']
     price_post = df.loc[df['start'] >= -start, 'Close']
@@ -341,12 +345,14 @@ def plot_multi_run(df, results, start, pct=False,
                 plt.savefig('../reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
             else:
                 plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+    if show:
+        plt.show()
 
     plt.close()
     return None
 
 def plot_aggregate(df, df_batch, start, col, plot_true=False,
-                    save=False, save_name=None, title='A plot'):
+                    save=False, save_name=None, title='A plot', show=False):
 
     price_pre = df.loc[df['start'] <= -start, 'Close']
     price_true = df.loc[df['start'] >= -start, 'Close']
@@ -395,6 +401,8 @@ def plot_aggregate(df, df_batch, start, col, plot_true=False,
                 plt.savefig('../reports/figures/{}.png'.format('Price_simulation'), dpi=600,bbox_inches='tight')
             else:
                 plt.savefig('../reports/figures/{}.png'.format(save_name), dpi=600,bbox_inches='tight')
+    if show:
+        plt.show()
 
     plt.close()
     return None
