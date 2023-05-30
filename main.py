@@ -88,7 +88,7 @@ if __name__ == '__main__':
     # of parameters that highly influence the duration of the script
     # once one chooses the parameter below it will interpolate
     # between two main configs
-    short_sim = 1          # if 1 very short simulation
+    short_sim = 0          # if 1 very short simulation
     if short_sim:
         print('Today we will just check that everything works as expected.')
         print('Do not trust these small size results')
@@ -215,8 +215,8 @@ if __name__ == '__main__':
     
 
     ### UPDATE ALPHA ACCORDING TO THE VALUE FOUND IN CALIBRATION ####
-    # alpha = calibration_output['parameter estimate']
-    alpha = -0.69     # value found
+    alpha = calibration_output['parameter estimate']
+    #alpha = -0.69     # value found
     ################ MODEL SINGLE RUN (COVID ONLY) #######################################################
     print('Running ABM...')
     model_time_start = time.time()     

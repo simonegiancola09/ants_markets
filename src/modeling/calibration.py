@@ -136,9 +136,10 @@ def metropolis_hastings(
     epochs = len(true_data) 
     print('Calibration of model runs for: ', epochs, 'epochs')
 
-    y_true = true_data
+    y_true = true_data.reset_index(drop=True)
     if multi:
         t1 = time.time()
+        model.alpha = alpha_start
         df_multi_run = multi_run(model, epochs, internal_iterations)
         y_hat = df_multi_run['prices'].mean(axis=0)
         t2 = time.time()
@@ -148,13 +149,13 @@ def metropolis_hastings(
 
     else:
         t1 = time.time()
+        model.alpha = alpha_start
         df_model, df_agents = ac.run_model(model, epochs) 
-        y_hat = df_model['price'].astype(float)
+        y_hat = np.append(df_model['price'].values, model.price)[1:]
         t2 = time.time()
         exec_time = t2 - t1
         est_time = exec_time * iterations / 60
         print('Estimated time:', np.round(est_time, 3), ' minutes')
-
 
     if preprocess:
         y_hat = preprocess_data(y_hat)
@@ -166,8 +167,7 @@ def metropolis_hastings(
     PROPOSALS = [alpha_start]
     accepted = 0
     for ITER in range(iterations):
-        if ITER % 50 == 0:
-            print('Reached ITERATION number {}'.format(np.round(ITER / iterations*100, 2)))
+
         
         alpha_current = ALPHAS[-1]
         llkh_current = llkh[-1]
@@ -187,11 +187,11 @@ def metropolis_hastings(
 
         else:
             df_model, df_agents = ac.run_model(model_new, epochs) 
-            y_hat = df_model['price'].astype(float)
+            y_hat = np.append(df_model['price'].values, model_new.price)[1:]
 
         if preprocess:
             y_hat = preprocess_data(y_hat)
-                    
+
         llkh_new = loss(y_hat, y_true)
 
         score_MH  = np.exp(llkh_new - llkh_current)
@@ -204,9 +204,10 @@ def metropolis_hastings(
             ALPHAS.append(alpha_new)
             llkh.append(llkh_new)
             accepted += 1
-      
-        print('Last Value found is {}'.format(np.round(ALPHAS[-1], 2)))
-        print('acceptance rate: ', np.round(accepted / (ITER+1), 2)) 
+        if ITER % 50 == 0:
+            print('Reached ITERATION number {}'.format(np.round(ITER / iterations*100, 2)))
+            print('Value found until now is {}'.format(np.round(np.mean(ALPHAS), 2)))
+            print('acceptance rate: ', np.round(accepted / (ITER+1), 2)) 
     ALPHAS = ALPHAS[burn_in:] 
     llkh = llkh[burn_in:]
     
